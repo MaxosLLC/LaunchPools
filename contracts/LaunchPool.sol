@@ -7,6 +7,7 @@ import "./Stake.sol";
 contract LaunchPool is Ownable {
     
     string public Name;
+    string public HomeUrl;
     uint256 public Date;
     uint256 public Count;
     bool public StakingAllowed;

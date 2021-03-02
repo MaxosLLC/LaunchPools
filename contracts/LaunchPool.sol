@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.4.22 <0.9.0;
 
-import "./ownership/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Stake.sol";
 
 contract LaunchPool is Ownable {
@@ -17,5 +17,5 @@ contract LaunchPool is Ownable {
     address public InvestmentAddress;
     uint256 public Status;
 
-    mapping(Stake => address) Stakes;
+    mapping(address => Stake) Stakes;
 }

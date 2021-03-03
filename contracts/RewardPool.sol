@@ -371,48 +371,60 @@ contract Ownable {
     }
 }
 
-// File: internal/Stake.sol
+// File: internal/RewardPool.sol
 
 pragma solidity >=0.4.22 <0.9.0;
 
-
-// LAUNCHPOOLS staking smart contract
 // staking reward is from the owner of this contract
-contract Stake is Ownable {
+contract RewardPool is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    // Info of each user.
-    struct UserInfo {
-        uint256 amount;
-        uint256 rewardDebt;
-        string nodeID;
+    address private _manager;
+    function manager() public view returns (address) { return _manager; }
+    modifier onlyManager() {
+        require(msg.sender == _manager, "only manager");
+        _;
     }
-    mapping (address => UserInfo) public userInfo;
 
-    uint256 public lastRewardBlock;  // Last block number that Rewards distribution occurs.
-    uint256 public accRewardPerShare; // Accumulated Rewards per share, times 1e12.
+    struct UserInfo {
+        uint256 stake;
+        uint256 punish;
+        uint256 rewardBalance;
+        uint256 rewardDebt;
+    }
+    mapping (address => UserInfo) private _userInfo;
 
-    IERC20 public stakeToken;
+    uint256 public totalStake;
     uint256 public rewardPerBlock;
     uint256 public rewardStartBlock;
+    uint256 public lastRewardBlock;
+    uint256 private _accRewardPerShare;
+    uint256 public punishAmountPerHour;
 
-    event Deposit(address indexed user, uint256 indexed amount);
-    event Withdraw(address indexed user, uint256 indexed amount);
-    event EmergencyWithdraw(address indexed user, uint256 indexed amount);
-    event RegisterNode(address indexed user, string nodeID);
+    event AddStake(address indexed user, uint256 indexed amount);
+    event SubStake(address indexed user, uint256 indexed amount);
+    event TakeReward(address indexed user, uint256 indexed amount);
+    event AddPunish(address indexed user, uint256 indexed offlineHours, uint256 indexed amount);
+    event PunishFromReward(address indexed user, uint256 indexed amount);
 
     constructor(
-        IERC20 _stakeToken,
+        address _stakeContract,
         uint256 _rewardPerBlock,
         uint256 _rewardStartBlock
     ) {
+        require(_stakeContract != address(0), "ctor: zero stake contract");
         require(_rewardPerBlock > 1e6, "ctor: reward per block is too small");
-        stakeToken = _stakeToken;
+        _manager = _stakeContract;
         rewardPerBlock = _rewardPerBlock;
         rewardStartBlock = _rewardStartBlock;
-
         lastRewardBlock = block.number > rewardStartBlock ? block.number : rewardStartBlock;
+    }
+
+    function userInfo(address _user) public view returns (uint256 stakeAmount, uint256 punishAmount) {
+        UserInfo storage user = _userInfo[_user];
+        stakeAmount = user.stake;
+        punishAmount = user.punish;
     }
 
     function setRewardPerBlock(uint256 _rewardPerBlock) public onlyOwner {
@@ -420,92 +432,95 @@ contract Stake is Ownable {
         rewardPerBlock = _rewardPerBlock;
     }
 
-    function calcAccRewardPerShare() public view returns (uint256) {
-        if (block.number <= lastRewardBlock) {
-            return accRewardPerShare;
-        }
-        uint256 lpSupply = stakeToken.balanceOf(address(this));
-        if (lpSupply == 0) {
-            return accRewardPerShare;
+    function setPunishAmountPerHour(uint256 _amount) public onlyOwner {
+        punishAmountPerHour = _amount;
+    }
+
+    function accRewardPerShare() public view returns (uint256) {
+        if (block.number <= lastRewardBlock || totalStake == 0 || rewardPerBlock == 0) {
+            return _accRewardPerShare;
         }
         uint256 multiplier = block.number.sub(lastRewardBlock);
         uint256 tokenReward = multiplier.mul(rewardPerBlock);
-        if (tokenReward <= 0) {
-            return accRewardPerShare;
-        }
-        return accRewardPerShare.add(tokenReward.mul(1e12).div(lpSupply));
+        return _accRewardPerShare.add(tokenReward.mul(1e12).div(totalStake));
     }
 
-    // View function to see pending REWARDs on frontend.
     function pendingReward(address _user) external view returns (uint256) {
-        uint256 newAccRewardPerShare = calcAccRewardPerShare();
-        UserInfo storage user = userInfo[_user];
-        uint256 reward = user.amount.mul(newAccRewardPerShare).div(1e12);
+        UserInfo storage user = _userInfo[_user];
+        uint256 reward = user.stake.mul(accRewardPerShare()).div(1e12);
+        uint256 pending = 0;
         if (reward > user.rewardDebt) {
-            return reward.sub(user.rewardDebt);
+            pending = reward.sub(user.rewardDebt);
         }
-        return 0;
+        return user.rewardBalance.add(pending);
     }
 
     function updatePool() public {
-        if (block.number <= lastRewardBlock) {
-            return;
+        if (block.number > lastRewardBlock) {
+            _accRewardPerShare = accRewardPerShare();
+            lastRewardBlock = block.number;
         }
-        accRewardPerShare = calcAccRewardPerShare();
-        lastRewardBlock = block.number;
     }
 
-    function farm(UserInfo storage user) internal {
+    function _farm(address _user) internal {
         updatePool();
-        if (user.amount > 0) {
-            uint256 reward = user.amount.mul(accRewardPerShare).div(1e12);
+        UserInfo storage user = _userInfo[_user];
+        if (user.stake > 0) {
+            uint256 reward = user.stake.mul(_accRewardPerShare).div(1e12);
             if (reward > user.rewardDebt) {
                 uint256 pending = reward.sub(user.rewardDebt);
-                stakeToken.safeTransferFrom(owner(), address(msg.sender), pending);
+                user.rewardBalance = user.rewardBalance.add(pending);
+            }
+        }
+        if (user.punish > 0 && user.rewardBalance > 0) {
+            if (user.rewardBalance >= user.punish) {
+                emit PunishFromReward(_user, user.punish);
+                user.rewardBalance = user.rewardBalance.sub(user.punish);
+                user.punish = 0;
+            } else {
+                emit PunishFromReward(_user, user.rewardBalance);
+                user.punish = user.punish.sub(user.rewardBalance);
+                user.rewardBalance = 0;
             }
         }
     }
 
-    // Deposit stake tokens
-    function deposit(uint256 _amount) public {
-        UserInfo storage user = userInfo[msg.sender];
-        farm(user);
-        if (_amount > 0) {
-            stakeToken.safeTransferFrom(address(msg.sender), address(this), _amount);
-            user.amount = user.amount.add(_amount);
-        }
-        user.rewardDebt = user.amount.mul(accRewardPerShare).div(1e12);
-        emit Deposit(msg.sender, _amount);
+    function takeReward(address _user) public onlyManager returns (uint256 reward) {
+        _farm(_user);
+        UserInfo storage user = _userInfo[_user];
+        reward = user.rewardBalance;
+        user.rewardBalance = 0;
+        user.rewardDebt = user.stake.mul(_accRewardPerShare).div(1e12);
+        emit TakeReward(_user, reward);
     }
 
-    // Withdraw stake tokens
-    function withdraw(uint256 _amount) public {
-        UserInfo storage user = userInfo[msg.sender];
-        require(user.amount >= _amount, "not enough balance");
-        farm(user);
-        if (_amount > 0) {
-            user.amount = user.amount.sub(_amount);
-            stakeToken.safeTransfer(address(msg.sender), _amount);
-        }
-        user.rewardDebt = user.amount.mul(accRewardPerShare).div(1e12);
-        emit Withdraw(msg.sender, _amount);
+    function addStake(address _user, uint256 _amount) public onlyManager {
+        require(_amount > 0, "zero amount");
+        _farm(_user);
+        UserInfo storage user = _userInfo[_user];
+        totalStake = totalStake.add(_amount);
+        user.stake = user.stake.add(_amount);
+        user.rewardDebt = user.stake.mul(_accRewardPerShare).div(1e12);
+        emit AddStake(_user, _amount);
     }
 
-    // Withdraw without caring about rewards. EMERGENCY ONLY.
-    function emergencyWithdraw() public {
-        UserInfo storage user = userInfo[msg.sender];
-        uint256 amount = user.amount;
-        user.amount = 0;
-        user.rewardDebt = 0;
-        stakeToken.safeTransfer(address(msg.sender), amount);
-        emit EmergencyWithdraw(msg.sender, amount);
+    function subStake(address _user, uint256 _amount) public onlyManager {
+        require(_amount > 0, "zero amount");
+        _farm(_user);
+        UserInfo storage user = _userInfo[_user];
+        totalStake = totalStake.sub(_amount);
+        user.stake = user.stake.sub(_amount);
+        user.rewardDebt = user.stake.mul(_accRewardPerShare).div(1e12);
+        emit SubStake(_user, _amount);
     }
 
-    // Register node. must have stake
-    function registerNode(string memory _nodeID) public {
-        UserInfo storage user = userInfo[msg.sender];
-        require(user.amount > 0, "no stake");
-        user.nodeID = _nodeID;
-        emit RegisterNode(msg.sender, _nodeID);
+    function punish(address _user, uint256 _offlineHours) public onlyManager {
+        require(punishAmountPerHour > 0, "no punish");
+        require(_offlineHours > 0, "zero time");
+        UserInfo storage user = _userInfo[_user];
+        require(user.stake > 0, "no stake");
+        uint256 punishAmount = punishAmountPerHour.mul(_offlineHours);
+        user.punish = user.punish.add(punishAmount);
+        emit AddPunish(_user, _offlineHours, punishAmount);
     }
 }

@@ -2,7 +2,7 @@
 pragma solidity >=0.4.22 <0.9.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./Stake.sol";
+//import "./Stake.sol";
 
 contract LaunchPool is Ownable {
     
@@ -17,5 +17,5 @@ contract LaunchPool is Ownable {
     address public InvestmentAddress;
     uint256 public Status;
 
-    mapping(address => Stake) Stakes;
+    //mapping(address => Stake) Stakes;
 }

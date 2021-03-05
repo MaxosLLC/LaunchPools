@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.4.22 <0.9.0;
 
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./Stake.sol";
+import './Stake.sol';
 
 contract LaunchPool is Ownable {
     
@@ -17,16 +18,30 @@ contract LaunchPool is Ownable {
     address public investmentAddress;
 
     mapping(address => Stake) public stakes;
+    mapping(address => uint) private depositedBalances;
+    mapping(address => uint) private stakedBalances;
+    mapping(address => uint) private requestStake;
+    mapping(address => uint) private requestUnStake;
+    mapping(address => uint) private userIndex;
 
     // The various stages of the staking process
     enum Status {Staking, Committing, Committed, Closed}
 
+    event NotifyFallback(address sender, uint amount);
+    event NotifyNewSC(address oldSC, address newSC);
+    event NotifyDeposit(address sender, uint amount, uint balance);
+    event NotifyStaked(address sender, uint amount);
+    event NotifyUpdate(address user, uint previousBalance, uint newStakeBalence);
+    event NotifyWithdrawal(address sender, uint startBal, uint finalBal, uint request);
+    event NotifyEarnings(uint earnings);
+
     // Default status
     Status public status = Status.Staking;
 
-        /**
+    /**
      * @dev Sets the initial values
      */
+
     constructor(
         string memory _name,
         string memory _homeUrl,
@@ -53,6 +68,7 @@ contract LaunchPool is Ownable {
     /**
      * closes the pool and refunds all stakes
      */
+
     function closeLaunchPool() public {
 
     }
@@ -60,6 +76,7 @@ contract LaunchPool is Ownable {
     /**
      * sets the expiration date for the commitment
      */
+
     function setExpirationDate() public {
 
     }
@@ -67,6 +84,7 @@ contract LaunchPool is Ownable {
     /**
      * sets the value to be committed
      */
+
     function setCommitment() public {
 
     }
@@ -74,7 +92,19 @@ contract LaunchPool is Ownable {
     /**
      * retrieves all stakes from the pool
      */
+
     function getStakes() public {
 
+    }
+
+    /** @dev payable fallback
+     * it is assumed that only funds received will be from stakeContract 
+     */
+    fallback() external payable {
+        emit NotifyFallback(msg.sender, msg.value);
+    }
+
+    receive() external payable {
+        // custom function code
     }
 }

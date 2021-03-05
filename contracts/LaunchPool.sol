@@ -20,7 +20,6 @@ contract LaunchPool is Ownable {
 
     // The various stages of the staking process
     enum Status {Staking, Committing, Committed, Closed}
-        // Phase can take only 0, 1, 2, 3 values: Others invalid
 
     // Default status
     Status public status = Status.Staking;

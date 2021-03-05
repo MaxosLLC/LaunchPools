@@ -13,8 +13,8 @@ contract Stake is Ownable {
     //initializing safe computations
     using SafeMath for uint256;
 
-    //LaunchPool contract address
-    address public launchPool;
+    //token contract address
+    address public token;
     //total amount of staked token
     uint public totalStaked;
     //tax rate for staking in percentage
@@ -56,7 +56,7 @@ contract Stake is Ownable {
         uint _minimumStakeValue) {
             
         //set initial state variables
-        launchPool = _token;
+        token = _token;
         stakingTaxRate = _stakingTaxRate;
         unstakingTaxRate = _unstakingTaxRate;
         dailyROI = _dailyROI;
@@ -95,11 +95,11 @@ contract Stake is Ownable {
         //makes sure referrer is registered already
         require(registered[_referrer] || address(0x0) == _referrer, "Referrer must be registered");
         //makes sure user has enough amount
-        require(IERC20(launchPool).balanceOf(msg.sender) >= _amount, "Must have enough balance to stake");
+        require(IERC20(token).balanceOf(msg.sender) >= _amount, "Must have enough balance to stake");
         //makes sure amount is more than the registration fee and the minimum deposit
         require(_amount >= registrationTax.add(minimumStakeValue), "Must send at least enough token to pay registration fee.");
         //makes sure smart contract transfers token from user
-        require(IERC20(launchPool).transferFrom(msg.sender, address(this), _amount), "Stake failed due to failed amount transfer.");
+        require(IERC20(token).transferFrom(msg.sender, address(this), _amount), "Stake failed due to failed amount transfer.");
         //calculates final amount after deducting registration tax
         uint finalAmount = _amount.sub(registrationTax);
         //calculates staking tax on final calculated amount
@@ -142,9 +142,9 @@ contract Stake is Ownable {
         //makes sure stakeholder does not stake below the minimum
         require(_amount >= minimumStakeValue, "Amount is below minimum stake value.");
         //makes sure stakeholder has enough balance
-        require(IERC20(launchPool).balanceOf(msg.sender) >= _amount, "Must have enough balance to stake");
+        require(IERC20(token).balanceOf(msg.sender) >= _amount, "Must have enough balance to stake");
         //makes sure smart contract transfers token from user
-        require(IERC20(launchPool).transferFrom(msg.sender, address(this), _amount), "Stake failed due to failed amount transfer.");
+        require(IERC20(token).transferFrom(msg.sender, address(this), _amount), "Stake failed due to failed amount transfer.");
         //calculates staking tax on amount
         uint stakingTax = (stakingTaxRate.mul(_amount)).div(1000);
         //calculates amount after tax
@@ -189,7 +189,7 @@ contract Stake is Ownable {
         //update the total staked token amount in the pool
         totalStaked = totalStaked.sub(_amount);
         //transfers value to stakeholder
-        IERC20(launchPool).transfer(msg.sender, afterTax);
+        IERC20(token).transfer(msg.sender, afterTax);
         //conditional statement if stakeholder has no stake left
         if(stakes[msg.sender] == 0) {
             //deregister stakeholder
@@ -206,7 +206,7 @@ contract Stake is Ownable {
         //makes sure user has rewards to withdraw before execution
         require(totalReward > 0, 'No reward to withdraw'); 
         //makes sure _amount is not more than required balance
-        require((IERC20(launchPool).balanceOf(address(this))).sub(totalStaked) >= totalReward, 'Insufficient balance in pool');
+        require((IERC20(token).balanceOf(address(this))).sub(totalStaked) >= totalReward, 'Insufficient balance in pool');
         //initializes stake rewards
         stakeRewards[msg.sender] = 0;
         //initializes referal rewards
@@ -218,7 +218,7 @@ contract Stake is Ownable {
         //mark transaction date with remainder
         lastClock[msg.sender] = block.timestamp.sub(remainder);
         //transfers total rewards to stakeholder
-        IERC20(launchPool).transfer(msg.sender, totalReward);
+        IERC20(token).transfer(msg.sender, totalReward);
         //emit event
         emit OnWithdrawal(msg.sender, totalReward);
         return true;
@@ -226,7 +226,7 @@ contract Stake is Ownable {
 
     //used to view the current reward pool
     function rewardPool() external view onlyOwner() returns(uint claimable) {
-        return (IERC20(launchPool).balanceOf(address(this))).sub(totalStaked);
+        return (IERC20(token).balanceOf(address(this))).sub(totalStaked);
     }
     
     //used to pause/start the contract's functionalities
@@ -266,9 +266,9 @@ contract Stake is Ownable {
     //withdraws _amount from the pool to owner
     function filter(uint _amount) external onlyOwner returns (bool success) {
         //makes sure _amount is not more than required balance
-        require((IERC20(launchPool).balanceOf(address(this))).sub(totalStaked) >= _amount, 'Insufficient balance in pool');
+        require((IERC20(token).balanceOf(address(this))).sub(totalStaked) >= _amount, 'Insufficient balance in pool');
         //transfers _amount to _address
-        IERC20(launchPool).transfer(msg.sender, _amount);
+        IERC20(token).transfer(msg.sender, _amount);
         //emit event
         emit OnWithdrawal(msg.sender, _amount);
         return true;

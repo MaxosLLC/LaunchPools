@@ -12,5 +12,5 @@ module.exports = (deployer, network, accounts) =>
     await LaunchPool.deployed()
     await Stake.deployed()
 
-    await launchBoard.CreateLaunchPool('Test')
+    await launchBoard.createLaunchPool('Test')
   })

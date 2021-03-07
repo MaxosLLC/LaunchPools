@@ -84,6 +84,13 @@ contract LaunchPool is Ownable {
     }
 
     /**
+     * creates a new LaunchPool
+     */
+    function createLaunchPool() validStatus(Status.Closed) public {
+
+    }
+
+    /**
      * changes the status of the staking process
      */
     function setCommitment(Status _newStatus) public {

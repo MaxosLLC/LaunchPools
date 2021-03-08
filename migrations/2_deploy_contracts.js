@@ -1,5 +1,5 @@
-const LaunchPool = artifacts.require("LaunchPool");
+const LaunchBoard = artifacts.require("LaunchBoard");
 
 module.exports = function(deployer) {
-  deployer.deploy(LaunchPool, "INSERT ADDRESS HERE");
+  deployer.deploy(LaunchBoard, "INSERT ADDRESS HERE");
 };

@@ -16,7 +16,7 @@ contract LaunchPool is Ownable {
     uint256 public minCommitment;
     address public investmentAddress;
 
-    mapping(address => Stake) stakes;
+    mapping(address => Stake) allStakes;
 
     // The various stages of the staking process
     enum Status {Staking, Committing, Committed, Closed}
@@ -84,16 +84,5 @@ contract LaunchPool is Ownable {
      */
     function getStakes() validStatus(Status.Closed) public {
 
-    }
-
-    /** @dev payable fallback
-     * it is assumed that only funds received will be from stakeContract 
-     */
-    fallback() external payable {
-        // add logic
-    }
-
-    receive() external payable {
-        // add logic
     }
 }

@@ -1,6 +1,6 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const Stake = artifacts.require('Stake');
-const ERC20 = artifacts.require('ERC20');
+const ERC20 = artifacts.require('IERC20');
 
 contract('LaunchStake', (accounts) => {
     let launchPoolStake;

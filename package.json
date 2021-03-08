@@ -24,6 +24,7 @@
   "devDependencies": {
     "@openzeppelin/contracts": "^3.4.1",
     "@openzeppelin/contracts-upgradeable": "^3.2.0",
+    "@openzeppelin/test-helpers": "^0.5.10",
     "@openzeppelin/truffle-upgrades": "^1.2.4"
   },
   "keywords": [

@@ -33,7 +33,7 @@ contract Stake is Ownable {
     }
 
     function stakedAmount(address _staker) public view returns (uint256) {
-            return stakers[_staker];
+        return stakers[_staker];
     }
 
     function stake(uint256 _value) public returns (bool) {

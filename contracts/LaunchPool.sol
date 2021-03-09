@@ -4,7 +4,7 @@ pragma solidity >=0.4.22 <0.9.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import './Stake.sol';
 
-contract LaunchPool is Ownable {
+contract Launchpool is Ownable {
     
     string public name;
     string public homeUrl;
@@ -16,23 +16,11 @@ contract LaunchPool is Ownable {
     uint256 public minCommitment;
     address public investmentAddress;
 
-    mapping(address => Stake) allStakes;
+    mapping(address => Stake) stakes;
 
-    // The various stages of the staking process
     enum Status {Staking, Committing, Committed, Closed}
 
-    // Default status
-    Status public status = Status.Staking;
-
-    // modifiers
-    modifier validStatus(Status reqStatus) {
-        require(status == reqStatus);
-        _;
-    }
-
-    /**
-     * @dev Sets the initial values
-     */
+    /** @dev sets the initial values */
     constructor(
         string memory _name,
         string memory _homeUrl,
@@ -43,8 +31,7 @@ contract LaunchPool is Ownable {
         uint256 _maxCommitment,
         uint256 _minCommitment,
         address _investmentAddress) {
-            
-        //set initial state variables
+
         name = _name;
         homeUrl = _homeUrl;
         date = _date;
@@ -56,33 +43,60 @@ contract LaunchPool is Ownable {
         investmentAddress = _investmentAddress;
     }
 
-    /**
-     * changes the status of the staking process
-     */
-    function setCommitment(Status _newStatus) public {
-        require(_newStatus > status);
-        status = _newStatus;
-        // add logic
-    }
+    /*====== FUNCTIONS FOR POOL SPONSORS ======*/
 
-    /**
-     * closes the pool and refunds all stakes
-     */
-    function closeLaunchPool() validStatus(Status.Closed) public {
-
-    }
-
-    /**
-     * sets the expiration date for the commitment
-     */
+    /** set the expiration date for the commitment */
     function setExpirationDate() public {
 
     }
 
-    /**
-     * retrieves all stakes from the pool
-     */
-    function getStakes() validStatus(Status.Closed) public {
+    /** change the status of the staking process */
+    function setStatus(Status _newStatus) onlyOwner() public {
+        
+    }
+
+    /** if staking status is 'Committed', claim the stakes  */
+    function claimStakes() public returns (uint256) {
 
     }
+
+    /** set the status to 'Closed' and refund all stakes */
+    function closeLaunchPool() public returns (bool) {
+
+    }
+
+    /*====== FUNCTIONS FOR INVESTORS ======*/
+
+    /** stake a token in a pool */
+    function addStake(address token, uint256 amount) public returns (bool) {
+
+    }
+
+    /** unstake a token from the pool */
+    function unStake(address token, uint256 amount) public returns (bool) {
+
+    }
+
+    /** retrieve all stakes from the pool */
+    function getStakes(address investor) public {
+
+    }
+
+    /*====== FUNCTIONS FOR ANY USER ======*/
+    
+    /** retrieve all stakes from the pool */
+    function getStakes() public {
+
+    }
+
+    /** retrieves all stakes belonging to a launch pool */
+    function getStatistics() public view {
+
+    }
+
+    /** closes the pool and refunds all stakes if expiration date is passed */
+    function closePool() public {
+
+    }
+
 }

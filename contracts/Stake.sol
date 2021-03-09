@@ -10,15 +10,20 @@ contract Stake is Ownable {
 
     using SafeMath for uint256;
 
-    address public tokenAddress;
+    address token;
+    address investor;
+    address sponsor;
+    uint256 value;
+    uint256 commitment;
+    uint256 order;
 
-    mapping(address => uint256) stakers;
+    event NotifyStaked(address staker, uint256 amount);
+    event NotifyUnstaked(address staker, uint256 amount);
+    event NotifyClaimed(address staker, uint256 amount);
+    event NotifyClosed(address staker);
 
-    event NotifyStaked(address staker, uint256 value);
-    event NotifyUnstaked(address staker, uint256 value);
-
-    constructor(address _tokenAddress) {
-        tokenAddress = _tokenAddress;
+    constructor(address _token) {
+        token = _token;
     }
 
     /** @dev payable fallback
@@ -28,26 +33,42 @@ contract Stake is Ownable {
         revert();
     }
 
+    /** @dev another payable fallback
+     * required by the solidity compiler
+     */
     receive() external payable {
         revert();
     }
 
-    function stakedAmount(address _staker) public view returns (uint256) {
-        return stakers[_staker];
+    /*====== Functions for Administrators ======*/
+
+    /** set the minimum value that can be committed */
+    function setMinValue(uint256 _value) onlyOwner() public returns (bool) {
+
     }
 
-    function stake(uint256 _value) public returns (bool) {
-        IERC20(tokenAddress).transferFrom(msg.sender, address(this), _value);
-        stakers[msg.sender] = stakers[msg.sender].add(_value);
-        emit NotifyStaked(msg.sender, _value);
-        return true;
+    /*====== Functions for Pool Sponsors ======*/
+
+    function claim(uint256 _value) public returns (uint256) {
+
     }
-    
-    function unstake(uint256 _value) public returns (bool) {
-        require(stakers[msg.sender] >= _value, "Amount to unstake exceeds sender's staked amount");
-        IERC20(tokenAddress).transfer(msg.sender, _value);
-        stakers[msg.sender] = stakers[msg.sender].sub(_value);
-        emit NotifyUnstaked(msg.sender, _value);
-        return true;
+
+    /*====== Functions for Investors that Own a Stake ======*/
+
+    /**  */
+    function close() public returns (bool) {
+
     }
+
+    function setCommitment(uint256 _value) public returns (bool) {
+
+    }
+
+    /*====== Functions for Any User ======*/
+
+    /** @dev get the amount of tokens from the token contract */
+    function getAmount(address _token) public view returns (uint256) {
+
+    }
+
 }

@@ -11,20 +11,50 @@ contract Stake is Ownable {
     using SafeMath for uint256;
 
     address token;
-    address investor;
-    address sponsor;
-    uint256 value;
-    uint256 commitment;
-    uint256 order;
+    // to be determined by pool owner/admin
+    uint256 minStakeValue;
+
+    mapping(address => uint256) stakeholders;
 
     event NotifyStaked(address staker, uint256 amount);
     event NotifyUnstaked(address staker, uint256 amount);
-    event NotifyClaimed(address staker, uint256 amount);
-    event NotifyClosed(address staker);
 
     constructor(address _token) {
         token = _token;
     }
+
+    //====== Functions for Investors ======//
+
+    /** stake a token in a pool */
+    function stake(uint256 _value) public returns (bool) {
+        IERC20(token).transferFrom(msg.sender, address(this), _value);
+        stakeholders[msg.sender] = stakeholders[msg.sender].add(_value);
+        emit NotifyStaked(msg.sender, _value);
+        return true;
+    }
+
+    /** unstake a token from the pool */
+    function unstake(uint256 _value) public returns (bool) {
+        require(stakeholders[msg.sender] >= _value, "Amount to unstake exceeds sender's staked amount");
+        IERC20(token).transfer(msg.sender, _value);
+        stakeholders[msg.sender] = stakeholders[msg.sender].sub(_value);
+        emit NotifyUnstaked(msg.sender, _value);
+        return true;
+    }
+
+    /** @dev get the amount of tokens staked in a pool */
+    function getAmount(address _stakeholder) public view returns (uint256) {
+        return stakeholders[_stakeholder];
+    }
+
+    //====== Functions for Sponsors/Administrators ======//
+
+    /** set the minimum value that can be staked */
+    function setMinimumStakeValue(uint _minStakeValue) external onlyOwner() {
+        minStakeValue = _minStakeValue;
+    }
+
+    //====== Payable Fallback Functions ======//
 
     /** @dev payable fallback
      * it is assumed that only funds received will be from the contract
@@ -38,37 +68,6 @@ contract Stake is Ownable {
      */
     receive() external payable {
         revert();
-    }
-
-    /*====== Functions for Administrators ======*/
-
-    /** set the minimum value that can be committed */
-    function setMinValue(uint256 _value) onlyOwner() public returns (bool) {
-
-    }
-
-    /*====== Functions for Pool Sponsors ======*/
-
-    function claim(uint256 _value) public returns (uint256) {
-
-    }
-
-    /*====== Functions for Investors that Own a Stake ======*/
-
-    /**  */
-    function close() public returns (bool) {
-
-    }
-
-    function setCommitment(uint256 _value) public returns (bool) {
-
-    }
-
-    /*====== Functions for Any User ======*/
-
-    /** @dev get the amount of tokens from the token contract */
-    function getAmount(address _token) public view returns (uint256) {
-
     }
 
 }

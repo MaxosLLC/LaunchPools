@@ -13,6 +13,7 @@ contract Stake is Ownable {
     address token;
     // to be determined by pool owner/admin
     uint256 minStakeValue;
+    uint256 public count;
 
     mapping(address => uint256) stakeholders;
 
@@ -29,6 +30,7 @@ contract Stake is Ownable {
     function stake(uint256 _value) public returns (bool) {
         IERC20(token).transferFrom(msg.sender, address(this), _value);
         stakeholders[msg.sender] = stakeholders[msg.sender].add(_value);
+        count = count + 1;
         emit NotifyStaked(msg.sender, _value);
         return true;
     }
@@ -38,6 +40,7 @@ contract Stake is Ownable {
         require(stakeholders[msg.sender] >= _value, "Amount to unstake exceeds sender's staked amount");
         IERC20(token).transfer(msg.sender, _value);
         stakeholders[msg.sender] = stakeholders[msg.sender].sub(_value);
+        count = count - 1;
         emit NotifyUnstaked(msg.sender, _value);
         return true;
     }

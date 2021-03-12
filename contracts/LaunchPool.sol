@@ -1,22 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.4.22 <0.9.0;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import './Stake.sol';
 
-contract LaunchPool is AccessControl, Ownable {
+contract LaunchPool is Ownable {
     using SafeMath for uint256;
 
     // object to interact with Stake.sol
     Stake stakingContract;   
 
+    struct Pool {
+        bytes32 name;
+        uint256 totalStakes;
+    }
+
+    bytes32[] public allPools;
     address[] public stakeholders;
     uint256 public numOfStakeHolders;
-    bytes32 public constant SPONSOR = keccak256("SPONSOR");
-
+    
+    mapping(address => Pool) public pools;
     mapping(address => uint256) public stakes;
     mapping(address => uint256) public toBeCommitted;
     mapping(address => uint256) public commitments;
@@ -28,16 +33,29 @@ contract LaunchPool is AccessControl, Ownable {
     event StatusChanged(Status newStatus);
     event StakesClaimed(address owner, uint256 startBal, uint256 finalBal, uint256 amount);
 
-    constructor(address _sponsor) {
-        _setupRole(SPONSOR, _sponsor);
+    //exclusive access for sponsors
+    modifier onlySponsor(bytes32 _poolName) {
+        require(pools[msg.sender].name == _poolName, "You must be a sponsor");
+        _;
+    }
+    //ensure that you're staking in the right pool
+    modifier correctPool(bytes32 _poolName) {
+        for (uint256 i = 0; i < allPools.length; i += 1) {
+            if (allPools[i] == _poolName) delete allPools[i];
+            else {
+                allPools.push(_poolName);
+            }
+        }
+        _;
     }
 
     /** add stakes to the launch pool */
-    function addStakes(uint256 _stake) public {
+    function addStakes(uint256 _stake, bytes32 _poolName) public correctPool(_poolName) {
         require(status == Status.Staking);
         stakingContract.stake(_stake);
-        if (stakes[msg.sender] == 0) addStakeHolder(msg.sender);
+        if (stakes[msg.sender] == 0) _addStakeHolder(msg.sender);
         stakes[msg.sender] = stakes[msg.sender].add(_stake);
+
     }
 
     /** remove stakes from the launch pool */
@@ -45,12 +63,12 @@ contract LaunchPool is AccessControl, Ownable {
         require(status == Status.Staking || status == Status.Closed);
         // safe math throws error code if negative
         stakes[msg.sender] = stakes[msg.sender].sub(_stake);
-        if (stakes[msg.sender] == 0) removeStakeHolder(msg.sender);
+        if (stakes[msg.sender] == 0) _removeStakeHolder(msg.sender);
         stakingContract.unstake(_stake);
     }
 
     /** if staking status is 'Committed', claim the stakes  */
-    function claimStakes(uint256 _amount) external onlyOwner() {
+    function claimStakes(uint256 _amount, bytes32 _poolName) external onlySponsor(_poolName) {
         require(status == Status.Committed);
         require(_amount > 0);
         require(commitments[msg.sender] >= _amount);
@@ -93,14 +111,14 @@ contract LaunchPool is AccessControl, Ownable {
     */
 
     /** change the status of the staking process */
-    function setStatus(Status _newStatus) public onlyOwner() {
+    function setStatus(Status _newStatus, bytes32 _poolName) public onlySponsor(_poolName) onlyOwner() {
         require(_newStatus > status);
         status = _newStatus;
         emit StatusChanged(status);
     }
 
     /** set the status to 'Closed' and refund all stakes */
-    function closeLaunchPool() public onlyOwner() {
+    function closeLaunchPool(bytes32 _poolName) public onlySponsor(_poolName) onlyOwner() {
         require(status != Status.Committed && status != Status.Committing);
         status = Status.Closed;
         removeStakes(getStakes());
@@ -115,13 +133,13 @@ contract LaunchPool is AccessControl, Ownable {
     }
 
     /** check if stakeholder already is in array before pushing in new address */
-    function addStakeHolder(address _stakeholder) public {
+    function _addStakeHolder(address _stakeholder) private {
         (bool _isStakeHolder, ) = isStakeHolder(_stakeholder);
         if (!_isStakeHolder) stakeholders.push(_stakeholder);
         numOfStakeHolders = stakeholders.length;
     }
 
-    function removeStakeHolder(address _stakeholder) public {
+    function _removeStakeHolder(address _stakeholder) private {
         (bool _isStakeHolder, uint256 s) = isStakeHolder(_stakeholder);
         if (_isStakeHolder) {
             // if stake holder exists
@@ -151,4 +169,8 @@ contract LaunchPool is AccessControl, Ownable {
         revert();
     }
 
+    /** Internal helper function to help create launch pools in LaunchBoard.sol */
+    function _createLaunchPools(bytes32 _poolName) internal onlySponsor(_poolName) onlyOwner() {
+
+    }
 }

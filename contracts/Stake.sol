@@ -11,14 +11,21 @@ contract Stake is Ownable {
     using SafeMath for uint256;
 
     address token;
-    // to be determined by pool owner/admin
-    uint256 minStakeValue;
-    uint256 public count;
+    uint256 private minStakeValue;
+    uint256 private count;
+    uint256[] public order;
 
     mapping(address => uint256) stakeholders;
+    mapping(address => bool) public sponsors;
 
-    event NotifyStaked(address staker, uint256 amount);
-    event NotifyUnstaked(address staker, uint256 amount);
+    event NotifyStaked(address staker, uint256 amount, uint256 position);
+    event NotifyUnstaked(address staker, uint256 amount, uint256 position);
+
+    //exclusive access for sponsors
+    modifier onlySponsor(address _sponsor) {
+        require(sponsors[_sponsor] == true, "You must be a sponsor");
+        _;
+    }
 
     constructor(address _token) {
         token = _token;
@@ -27,22 +34,23 @@ contract Stake is Ownable {
     //====== Functions for Investors ======//
 
     /** stake a token in a pool */
-    function stake(uint256 _value) public returns (bool) {
+    function stake(uint256 _value) public {
+        require(stakeholders[msg.sender] >= minStakeValue, "Amount to is less than minimum stake value");
         IERC20(token).transferFrom(msg.sender, address(this), _value);
         stakeholders[msg.sender] = stakeholders[msg.sender].add(_value);
         count = count + 1;
-        emit NotifyStaked(msg.sender, _value);
-        return true;
+        order.push(count);
+        emit NotifyStaked(msg.sender, _value, count);
     }
 
     /** unstake a token from the pool */
-    function unstake(uint256 _value) public returns (bool) {
+    function unstake(uint256 _value) public {
         require(stakeholders[msg.sender] >= _value, "Amount to unstake exceeds sender's staked amount");
         IERC20(token).transfer(msg.sender, _value);
         stakeholders[msg.sender] = stakeholders[msg.sender].sub(_value);
         count = count - 1;
-        emit NotifyUnstaked(msg.sender, _value);
-        return true;
+        order.push(count);
+        emit NotifyUnstaked(msg.sender, _value, count);
     }
 
     /** @dev get the amount of tokens staked in a pool */
@@ -53,8 +61,8 @@ contract Stake is Ownable {
     //====== Functions for Sponsors/Administrators ======//
 
     /** set the minimum value that can be staked */
-    function setMinimumStakeValue(uint _minStakeValue) external onlyOwner() {
-        minStakeValue = _minStakeValue;
+    function setMinimumStakeValue(uint _minValue) external onlySponsor(msg.sender) onlyOwner() {
+        minStakeValue = _minValue;
     }
 
     //====== Payable Fallback Functions ======//

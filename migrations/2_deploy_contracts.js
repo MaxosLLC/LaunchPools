@@ -12,5 +12,6 @@ module.exports = (deployer, network, accounts) =>
     await LaunchPool.deployed()
     await Stake.deployed()
 
-    await launchBoard.createLaunchPool('0x0')
+    // name, url, expiration date, min commitment, max commitment
+    await launchBoard.createLaunchPool('Maxos', 'http://maxos.studio/', 1615909020, 1, 100)
 });

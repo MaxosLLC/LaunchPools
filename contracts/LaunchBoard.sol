@@ -24,7 +24,8 @@ contract LaunchBoard is AccessControl, Ownable, LaunchPool {
         token = _allowedToken;
     }
 
-    function createLaunchPool(bytes32 _poolName) 
+    function createLaunchPool(string _poolName, string _homeUrl, uint256 _expiration,
+        uint256 _minCommitment, uint256 _maxCommitment) 
                 public onlySponsor(_poolName) onlyOwner() correctPool(_poolName) {
         emit LaunchPoolCreated(msg.sender, _poolName);
     }

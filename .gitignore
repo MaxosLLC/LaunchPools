@@ -58,6 +58,8 @@ typings/
 # dotenv environment variables file
 .env
 .secret
+.secret.main
+.secret.test
 
 contracts/.placeholder
 test/.placeholder

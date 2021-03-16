@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./LaunchPool.sol";
 
-abstract contract LaunchBoard is AccessControl, Ownable, LaunchPool {
+contract LaunchBoard is AccessControl, Ownable, LaunchPool {
     using SafeMath for uint256;
 
     //allowed token address
@@ -20,7 +20,7 @@ abstract contract LaunchBoard is AccessControl, Ownable, LaunchPool {
     event PoolStatusChanged(bytes32 poolName, PoolState newStatus);
 
     constructor(address _sponsor, address _allowedToken) {
-        grantRole(SPONSOR, _sponsor);
+        //grantRole(SPONSOR, _sponsor);
         token = _allowedToken;
     }
 

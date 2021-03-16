@@ -14,6 +14,7 @@ contract Stake is Ownable {
     uint256 private minStakeValue;
     uint256 private count;
     uint256[] public order;
+    uint256 public commitment;
 
     mapping(address => uint256) stakeholders;
     mapping(address => bool) public sponsors;

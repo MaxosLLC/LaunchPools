@@ -20,6 +20,16 @@ contract LaunchPool is Ownable {
     bytes32[] public allPools;
     address[] public stakeholders;
     uint256 public numOfStakeHolders;
+
+    string public name;
+    string public homeUrl;
+    uint256 public date;
+    uint256 public count;
+    bool public stakingAllowed;
+    bool public commitmentAllowed;
+    uint256 public maxCommitment;
+    uint256 public minCommitment;
+    address public investmentAddress;
     
     mapping(address => Pool) public pools;
     mapping(address => uint256) public stakes;

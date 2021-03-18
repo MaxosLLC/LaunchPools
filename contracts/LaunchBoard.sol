@@ -16,7 +16,7 @@ contract LaunchBoard is AccessControl, Ownable, LaunchPool {
     // default state
     PoolState poolState = PoolState.Open;
 
-    event LaunchPoolCreated(address sponsor, bytes32 pool);
+    event LaunchPoolCreated(address sponsor, string pool);
     event PoolStatusChanged(bytes32 poolName, PoolState newStatus);
 
     constructor(address _sponsor, address _allowedToken) {
@@ -24,7 +24,7 @@ contract LaunchBoard is AccessControl, Ownable, LaunchPool {
         token = _allowedToken;
     }
 
-    function createLaunchPool(string _poolName, string _homeUrl, uint256 _expiration,
+    function createLaunchPool(string memory _poolName, string memory _homeUrl, uint256 _expiration,
         uint256 _minCommitment, uint256 _maxCommitment) 
                 public onlySponsor(_poolName) onlyOwner() correctPool(_poolName) {
         emit LaunchPoolCreated(msg.sender, _poolName);

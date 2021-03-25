@@ -9,6 +9,6 @@ contract('LaunchBoard', accounts => {
 
   it('LaunchBoard - Create Launch Pool', async () => {
     let lp = await launchBoard.createLaunchPool('Maxos', 'http://maxos.studio/', 1615909020, 1, 100)
-    assert.equal(lp.logs[0].event, 'LaunchPoolCreated')
+    assert.equal(lp.logs[1].event, 'LaunchPoolCreated')
   })
 })

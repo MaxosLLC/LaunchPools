@@ -59,6 +59,14 @@ contract LaunchPool is Ownable {
         _;
     }
 
+    constructor(string memory _poolName, string memory _homeUrl, uint256 _expiration, uint256 _minCommitment, uint256 _maxCommitment) {
+        name = _poolName;
+        homeUrl = _homeUrl;
+        date = _expiration;
+        minCommitment = _minCommitment;
+        maxCommitment = _maxCommitment;
+    }
+
     /** add stakes to the launch pool */
     function addStakes(uint256 _stake, bytes32 _poolName) public correctPool(_poolName) {
         require(status == Status.Staking);

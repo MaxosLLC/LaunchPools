@@ -5,8 +5,10 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./LaunchPool.sol";
 
-contract LaunchBoard is AccessControl, Ownable, LaunchPool {
+contract LaunchBoard is AccessControl, Ownable {
     using SafeMath for uint256;
+
+    mapping(address => LaunchPool) LaunchPools;
 
     //allowed token address
     address token;
@@ -19,27 +21,23 @@ contract LaunchBoard is AccessControl, Ownable, LaunchPool {
     event LaunchPoolCreated(address sponsor, string pool);
     event PoolStatusChanged(bytes32 poolName, PoolState newStatus);
 
-    constructor(address _sponsor, address _allowedToken) {
+    constructor() {
         //grantRole(SPONSOR, _sponsor);
-        token = _allowedToken;
+        //token = _allowedToken;
     }
 
     function createLaunchPool(string memory _poolName, string memory _homeUrl, uint256 _expiration,
-        uint256 _minCommitment, uint256 _maxCommitment) 
-                public onlySponsor(_poolName) onlyOwner() correctPool(_poolName) {
-        emit LaunchPoolCreated(msg.sender, _poolName);
-    }
+        uint256 _minCommitment, uint256 _maxCommitment) onlyOwner() public {
 
-    function getLaunchPools() public view returns (bytes32[] memory) {
-        require(allPools.length > 0, "There are currently no pools");
-        return allPools;
+        LaunchPools[msg.sender] = new LaunchPool(_poolName, _homeUrl, _expiration, _minCommitment, _maxCommitment);
+        emit LaunchPoolCreated(msg.sender, _poolName);
     }
 
     //======== HELPER FUNCTIONS ========
 
     /** change the status of a launch pool */
     function updatePoolState(bytes32 _poolName, PoolState _newState) 
-                public onlySponsor(_poolName) onlyOwner() correctPool(_poolName) {
+                public onlyOwner() {
         require(_newState > poolState);
         poolState = _newState;
         emit PoolStatusChanged(_poolName, poolState);

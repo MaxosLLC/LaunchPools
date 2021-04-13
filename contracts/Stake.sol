@@ -11,9 +11,7 @@ contract Stake is Ownable {
     using SafeMath for uint256;
 
     address token;
-    uint256 private minStakeValue;
     uint256 private count;
-    uint256[] public order;
     uint256 public commitment;
 
     mapping(address => uint256) stakeholders;
@@ -36,11 +34,9 @@ contract Stake is Ownable {
 
     /** stake a token in a pool */
     function stake(uint256 _value) public {
-        require(stakeholders[msg.sender] >= minStakeValue, "Amount to is less than minimum stake value");
         IERC20(token).transferFrom(msg.sender, address(this), _value);
         stakeholders[msg.sender] = stakeholders[msg.sender].add(_value);
         count = count + 1;
-        order.push(count);
         emit NotifyStaked(msg.sender, _value, count);
     }
 
@@ -50,20 +46,12 @@ contract Stake is Ownable {
         IERC20(token).transfer(msg.sender, _value);
         stakeholders[msg.sender] = stakeholders[msg.sender].sub(_value);
         count = count - 1;
-        order.push(count);
         emit NotifyUnstaked(msg.sender, _value, count);
     }
 
     /** @dev get the amount of tokens staked in a pool */
     function getAmount(address _stakeholder) public view returns (uint256) {
         return stakeholders[_stakeholder];
-    }
-
-    //====== Functions for Sponsors/Administrators ======//
-
-    /** set the minimum value that can be staked */
-    function setMinimumStakeValue(uint _minValue) external onlySponsor(msg.sender) onlyOwner() {
-        minStakeValue = _minValue;
     }
 
     //====== Payable Fallback Functions ======//

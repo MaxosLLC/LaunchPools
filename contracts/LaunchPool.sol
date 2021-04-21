@@ -3,54 +3,89 @@ pragma solidity 0.8.3;
 
 import "@openzeppelin/contracts/utils/escrow/Escrow.sol";
 import "./interfaces/IERC20Minimal.sol";
+import "hardhat/console.sol";
 
 contract LaunchPool {
     string public name;
     uint256 public maxCommitment;
     uint256 public minCommitment;
 
-    address private tokenAddress;
+    mapping(address => mapping(address => uint256)) private _stakes;
+    mapping(address => bool) private _allowedTokenAddresses;
 
-    mapping(address => uint256) private _stakes;
-
-    event Staked(address indexed payee, uint256 weiAmount);
-    event Unstaked(address indexed payee, uint256 weiAmount);
+    event Staked(address indexed payee, address indexed token, uint256 amount);
+    event Unstaked(
+        address indexed payee,
+        address indexed token,
+        uint256 amount
+    );
 
     constructor(
-        address _tokenAddress,
+        address[] memory allowedAddresses_,
         string memory _poolName,
         uint256 _minCommitment,
         uint256 _maxCommitment
     ) {
+        // Allow at most 3 coins
+        require(
+            allowedAddresses_.length >= 1 && allowedAddresses_.length <= 3,
+            "There must be at least 1 and at most 3 tokens"
+        );
         name = _poolName;
         minCommitment = _minCommitment;
         maxCommitment = _maxCommitment;
-        tokenAddress = _tokenAddress;
+
+        _allowedTokenAddresses[allowedAddresses_[0]] = true;
     }
 
-    function stake(uint256 amount) public {
-        address payee = msg.sender;
-        _stakes[payee] = _stakes[payee] + amount;
+    modifier isTokenAllowed(address _tokenAddr) {
+        require(
+            _allowedTokenAddresses[_tokenAddr],
+            "Cannot deposit that token"
+        );
+        _;
+    }
 
-        IERC20Minimal(tokenAddress).transferFrom(
-            msg.sender,
-            address(this),
-            amount
+    /** @dev This allows you to stake some ERC20 token. Make sure
+     * You `ERC20.approve` to `LaunchPool` contract before you stake.
+     */
+    function stake(address token, uint256 amount)
+        external
+        isTokenAllowed(token)
+    {
+        address payee = msg.sender;
+
+        // If the transfer fails, we revert and don't record the amount.
+        _stakes[payee][token] = _stakes[payee][token] + amount;
+        require(
+            IERC20Minimal(token).transferFrom(
+                msg.sender,
+                address(this),
+                amount
+            ),
+            "Did not get the moneys"
         );
 
-        emit Staked(payee, amount);
+        emit Staked(payee, token, amount);
     }
 
-    function unstake() public {
-        uint256 stake_ = _stakes[msg.sender];
-        _stakes[msg.sender] = 0;
+    function unstake(address token) external isTokenAllowed(token) {
+        uint256 currStake = _stakes[msg.sender][token];
 
-        IERC20Minimal(tokenAddress).transfer(msg.sender, stake_);
+        _stakes[msg.sender][token] = 0;
+        require(
+            IERC20Minimal(token).transfer(msg.sender, currStake),
+            "Could not send the moneys"
+        );
 
-        emit Unstaked(msg.sender, stake_);
+        emit Unstaked(msg.sender, token, currStake);
     }
 
-    function stakesOf(address payee) public view returns (uint256) {
-        return _stakes[payee];
+    function stakesOf(address payee, address token)
+        public
+        view
+        returns (uint256)
+    {
+        return _stakes[payee][token];
     }
 }

@@ -36,6 +36,13 @@ contract LaunchPool {
         maxCommitment = _maxCommitment;
 
         _allowedTokenAddresses[allowedAddresses_[0]] = true;
+        if (allowedAddresses_.length >= 2) {
+            _allowedTokenAddresses[allowedAddresses_[1]] = true;
+        }
+
+        if (allowedAddresses_.length == 3) {
+            _allowedTokenAddresses[allowedAddresses_[2]] = true;
+        }
     }
 
     modifier isTokenAllowed(address _tokenAddr) {

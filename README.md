@@ -1,35 +1,18 @@
-# Launch Pools
+# Launch Pools Contracts
 
-## Installation
+This repo contains all the contracts for launchpools. It uses hardhat to aid in development.
 
-Installing Ganache-cli (Local Ethereum Blockchain):
+### Setting up:
 
-```sh
-npm install -g ganache-cli
-```
+Install all dependencies: `npm i`. Then you can run the tests `npx hardhat test`.
 
-Installing Truffle + Mocha:
+### Running a local node:
 
-```sh
-npm install -g truffle mocha
-```
+In order to test the system e2e, a local blockchain must be running. 
 
-Installing dependencies:
+1. Run the local blockchain: `npx hardhat node`.
+2. Compile and deploy all contracts to this network: `npx hardhat run --network localhost scripts/deploy-contracts.js`.
 
-```sh
-npm install
-```
+At this point, you have a local blockchain running on `localhost:8545` ready to accept connections.
 
-## Tests 
 
-Running ganache cli:
-
-```sh
-ganache-cli -p 8545
-```
-
-Running mocha tests:
-
-```sh
-truffle test
-```

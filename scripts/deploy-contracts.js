@@ -18,8 +18,9 @@ async function main() {
 
   await mockERC20.deployed();
 
+  const currentTime = Math.round(Date.now() / 1000) + 36000;
   const LaunchPool = await hh.ethers.getContractFactory("LaunchPool");
-  const launchPool = await LaunchPool.deploy(mockERC20.address, "testPool1", 100, 1000);
+  const launchPool = await LaunchPool.deploy([mockERC20.address], "testPool1", 100, 1000, currentTime);
 
   await launchPool.deployed();
 

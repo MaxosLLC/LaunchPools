@@ -10,8 +10,13 @@ contract LaunchPool {
     uint256 public maxCommitment;
     uint256 public minCommitment;
 
+    uint256 private _endTimestamp;
+    uint256 private _totalStaked;
+    uint256 private _stakersCount;
+
     mapping(address => mapping(address => uint256)) private _stakes;
     mapping(address => bool) private _allowedTokenAddresses;
+    mapping(address => uint256) private _stakesByAccount;
 
     event Staked(address indexed payee, address indexed token, uint256 amount);
     event Unstaked(
@@ -24,7 +29,8 @@ contract LaunchPool {
         address[] memory allowedAddresses_,
         string memory _poolName,
         uint256 _minCommitment,
-        uint256 _maxCommitment
+        uint256 _maxCommitment,
+        uint256 endTimestamp_
     ) {
         // Allow at most 3 coins
         require(
@@ -34,6 +40,7 @@ contract LaunchPool {
         name = _poolName;
         minCommitment = _minCommitment;
         maxCommitment = _maxCommitment;
+        _endTimestamp = endTimestamp_;
 
         _allowedTokenAddresses[allowedAddresses_[0]] = true;
         if (allowedAddresses_.length >= 2) {
@@ -53,17 +60,35 @@ contract LaunchPool {
         _;
     }
 
+    modifier isLaunchPoolOpen() {
+        require(block.timestamp <= _endTimestamp, "LaunchPool is closed");
+        _;
+    }
+
+    modifier hasRoomForDeposit(uint256 amount) {
+        require(
+            _totalStaked + amount <= maxCommitment,
+            "Maximum staked amount exceeded"
+        );
+        _;
+    }
+
     /** @dev This allows you to stake some ERC20 token. Make sure
      * You `ERC20.approve` to `LaunchPool` contract before you stake.
      */
     function stake(address token, uint256 amount)
         external
         isTokenAllowed(token)
+        isLaunchPoolOpen
+        hasRoomForDeposit(amount)
     {
         address payee = msg.sender;
 
-        // If the transfer fails, we revert and don't record the amount.
+        _stakesByAccount[payee] = _stakesByAccount[payee] + amount;
         _stakes[payee][token] = _stakes[payee][token] + amount;
+        _totalStaked += amount;
+
+        // If the transfer fails, we revert and don't record the amount.
         require(
             IERC20Minimal(token).transferFrom(
                 msg.sender,
@@ -79,6 +104,8 @@ contract LaunchPool {
     function unstake(address token) external isTokenAllowed(token) {
         uint256 currStake = _stakes[msg.sender][token];
 
+        _totalStaked -= currStake;
+        _stakesByAccount[msg.sender] -= currStake;
         _stakes[msg.sender][token] = 0;
         require(
             IERC20Minimal(token).transfer(msg.sender, currStake),
@@ -94,5 +121,17 @@ contract LaunchPool {
         returns (uint256)
     {
         return _stakes[payee][token];
+    }
+
+    function totalStakesOf(address payee) public view returns (uint256) {
+        return _stakesByAccount[payee];
+    }
+
+    function totalStakes() public view returns (uint256) {
+        return _totalStaked;
+    }
+
+    function isFunded() public view returns (bool) {
+        return _totalStaked >= minCommitment;
     }
 }

@@ -1,4 +1,6 @@
 
+.vscode/
+.mocharc.json
 artifacts
 cache
 

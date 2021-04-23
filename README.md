@@ -39,8 +39,9 @@ details
 
 Kovan Contract Adresses:
 
+```
 ERC20 = "0xeA096Ba8979893CF64B7b67eF84BcD9C0cDe925c"
 DAI   = "0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa"
 USDC  = "0x75b0622cec14130172eae9cf166b92e5c112faff"
-
 LaunchPool: "0x61E01529A3c25592C97B66d10a88036Bed878026"
+```

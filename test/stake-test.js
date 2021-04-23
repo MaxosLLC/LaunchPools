@@ -4,7 +4,7 @@ const { ethers } = require("hardhat");
 const initialAmount = 100;
 
 describe("Stake with no time lock", function() {
-  let owner, acc1, token1, token2, token3, token4, launchPool;
+  let owner, acc1, token1, token2, token3, token4, launchPool, currentTime;
 
   beforeEach("create and deploy erc and stake", async () => {
     [ owner, acc1 ] = await ethers.getSigners();
@@ -15,7 +15,7 @@ describe("Stake with no time lock", function() {
     token3 = await MockERC20.deploy(initialAmount);
     token4 = await MockERC20.deploy(initialAmount);
 
-    const currentTime = Math.round(Date.now() / 1000);
+    currentTime = Math.round(Date.now() / 1000);
 
     const LaunchPool = await ethers.getContractFactory("LaunchPool");
     launchPool = await LaunchPool.deploy(
@@ -41,14 +41,9 @@ describe("Stake with no time lock", function() {
   });
 
   it("Owner's amount is initially zero with all tokens", async function() {
-    let ownerStakedAmount = await launchPool.stakesOf(owner.address, token1.address);
-    expect(ownerStakedAmount).to.equal(0);
-
-    ownerStakedAmount = await launchPool.stakesOf(owner.address, token2.address);
-    expect(ownerStakedAmount).to.equal(0);
-
-    ownerStakedAmount = await launchPool.stakesOf(owner.address, token3.address);
-    expect(ownerStakedAmount).to.equal(0);
+    expect(await launchPool.stakesOf(owner.address, token1.address)).to.equal(0);
+    expect(await launchPool.stakesOf(owner.address, token2.address)).to.equal(0);
+    expect(await launchPool.stakesOf(owner.address, token3.address)).to.equal(0);
   });
 
   it("Stake token1 and get amount staked", async function() {
@@ -62,6 +57,8 @@ describe("Stake with no time lock", function() {
     expect(await launchPool.stakesOf(owner.address, token1.address)).to.equal(10);
     expect(await launchPool.totalStakesOf(owner.address)).to.equal(10);
     expect(await launchPool.totalStakes()).to.equal(10);
+
+    expect(await launchPool.endTimestamp()).to.equal(currentTime + 3600);
   });
 
   it("Stake token1 then unstake", async function() {

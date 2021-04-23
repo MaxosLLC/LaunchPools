@@ -134,4 +134,9 @@ contract LaunchPool {
     function isFunded() public view returns (bool) {
         return _totalStaked >= minCommitment;
     }
+
+    function endTimestamp() public view returns (uint256) {
+        return _endTimestamp;
+    }
+
 }

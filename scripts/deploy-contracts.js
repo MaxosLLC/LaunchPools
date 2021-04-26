@@ -22,7 +22,7 @@ async function main() {
   const DAI = "0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa";
   const USDC = "0x75b0622cec14130172eae9cf166b92e5c112faff";
 
-  const currentTime = Math.round(Date.now() / 1000) + 36000;
+  const currentTime = Math.round(Date.now() / 1000) + (3600 * 24 * 100);
   const LaunchPool = await hh.ethers.getContractFactory("LaunchPool");
 
   const minAmount = BigNumber.from("500000000000000000000");

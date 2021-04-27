@@ -12,7 +12,7 @@ contract LaunchPool {
 
     uint256 private _endTimestamp;
     uint256 private _totalStaked;
-    uint256 private _stakersCount;
+    uint256 private _accountsStakeCount;
 
     mapping(address => mapping(address => uint256)) private _stakes;
     mapping(address => bool) private _allowedTokenAddresses;
@@ -84,6 +84,10 @@ contract LaunchPool {
     {
         address payee = msg.sender;
 
+        if (!_accountHasStaked(payee)) {
+            _accountsStakeCount += 1;
+        }
+
         _stakesByAccount[payee] = _stakesByAccount[payee] + amount;
         _stakes[payee][token] = _stakes[payee][token] + amount;
         _totalStaked += amount;
@@ -107,6 +111,11 @@ contract LaunchPool {
         _totalStaked -= currStake;
         _stakesByAccount[msg.sender] -= currStake;
         _stakes[msg.sender][token] = 0;
+
+        if (!_accountHasStaked(msg.sender)) {
+            _accountsStakeCount -= 1;
+        }
+
         require(
             IERC20Minimal(token).transfer(msg.sender, currStake),
             "Could not send the moneys"
@@ -139,4 +148,12 @@ contract LaunchPool {
         return _endTimestamp;
     }
 
+    /** Kind of a weird name. Will change it eventually. */
+    function stakeCount() public view returns (uint256) {
+        return _accountsStakeCount;
+    }
+
+    function _accountHasStaked(address account) private view returns (bool) {
+        return _stakesByAccount[account] != 0;
+    }
 }

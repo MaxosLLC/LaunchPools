@@ -40,10 +40,12 @@ describe("Stake with no time lock", function() {
     ).to.be.reverted;
   });
 
-  it("Owner's amount is initially zero with all tokens", async function() {
+  it("Zero stakes", async function() {
     expect(await launchPool.stakesOf(owner.address, token1.address)).to.equal(0);
     expect(await launchPool.stakesOf(owner.address, token2.address)).to.equal(0);
     expect(await launchPool.stakesOf(owner.address, token3.address)).to.equal(0);
+    expect(await launchPool.totalStakes()).to.equal(0);
+    expect(await launchPool.stakeCount()).to.equal(0);
   });
 
   it("Stake token1 and get amount staked", async function() {
@@ -57,8 +59,8 @@ describe("Stake with no time lock", function() {
     expect(await launchPool.stakesOf(owner.address, token1.address)).to.equal(10);
     expect(await launchPool.totalStakesOf(owner.address)).to.equal(10);
     expect(await launchPool.totalStakes()).to.equal(10);
-
     expect(await launchPool.endTimestamp()).to.equal(currentTime + 3600);
+    expect(await launchPool.stakeCount()).to.equal(1);
   });
 
   it("Stake token1 then unstake", async function() {
@@ -67,6 +69,7 @@ describe("Stake with no time lock", function() {
         .withArgs(owner.address, token1.address, 10);
 
     expect(await token1.balanceOf(owner.address)).to.equal(90);
+    expect(await launchPool.stakeCount()).to.equal(1);
 
     await expect(launchPool.unstake(token1.address))
         .to.emit(launchPool, "Unstaked")
@@ -75,6 +78,7 @@ describe("Stake with no time lock", function() {
     expect(await launchPool.stakesOf(owner.address, token1.address)).to.equal(0);
     expect(await launchPool.totalStakesOf(owner.address)).to.equal(0);
     expect(await launchPool.totalStakes()).to.equal(0);
+    expect(await launchPool.stakeCount()).to.equal(0);
 
     expect(await token1.balanceOf(owner.address)).to.equal(100);
   });
@@ -103,6 +107,7 @@ describe("Stake with no time lock", function() {
 
     expect(await launchPool.totalStakesOf(owner.address)).to.equal(30);
     expect(await launchPool.totalStakes()).to.equal(30);
+    expect(await launchPool.stakeCount()).to.equal(1);
   });
 
   it("Stake multiple tokens, multiple users", async function() {
@@ -138,6 +143,7 @@ describe("Stake with no time lock", function() {
     expect(await launchPool.totalStakesOf(owner.address)).to.equal(20);
     expect(await launchPool.totalStakesOf(acc1.address)).to.equal(20);
     expect(await launchPool.totalStakes()).to.equal(40);
+    expect(await launchPool.stakeCount()).to.equal(2);
   });
 });
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
+import "./StakeVault.sol";
 import "@openzeppelin/contracts/utils/escrow/Escrow.sol";
-import "./interfaces/IERC20Minimal.sol";
 import "hardhat/console.sol";
 
 struct Stake {
@@ -16,45 +16,59 @@ struct Stake {
     uint256 amount;
 }
 
-contract LaunchPool {
-    enum Stages {AcceptingStakes, AcceptingCommitments, Funded, Closed}
+/** @dev This helps us track how long a certain thing is valid or available for.*/
+struct ExpiryData {
+    uint256 startTime;
+    uint256 duration;
+}
 
-    /** All pools start in this state  */
-    Stages public stage = Stages.AcceptingStakes;
-
-    uint256 public poolStartTime = block.timestamp;
-
-    string public name;
-
-    /** How long will this launchpool be valid for.  */
-    uint256 public poolValidDuration;
-
-    /** @dev the minimum amount an offer should gather in order to be redeemable */
-    uint256 public minOfferAmount;
-
+/** @dev The min and max values for an offer.
+ * If we have less than `minimum`, the offer cannot be redeemed.
+ * If we have more than `maximum`, some stakes will not be considered.
+ */
+struct OfferBounds {
+    uint256 minimum;
     /** @dev the maximum amount an offer can get. All stakes that are above this value
      * will not be used and will be returned to the account that staked them initially.
      * TODO: what do we do when stakedSoFar + currentStake > maxOfferAmount. We could clip
      * the stake and return the remainder.
      */
-    uint256 public maxOfferAmount;
+    uint256 maximum;
+}
 
-    /** When did the offer start? i.e., when were people allowed to commit? */
-    uint256 public offerStartTime;
+/** @dev data of an offer */
+struct Offer {
+    OfferBounds bounds;
+    string url;
+}
 
-    /** Time the offer is valid for in ms */
-    uint256 public offerValidDuration;
+contract LaunchPool {
+    enum Stages {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
-    /** If this value is empty, we assume people cannot commit  */
-    string public offerUrl;
+    string public name;
+
+    /** All pools start in this state  */
+    Stages public stage = Stages.AcceptingStakes;
+
+    ExpiryData public poolExpiry;
+    ExpiryData public offerExpiry;
+
+    /** When `offer.url` is empty, the pool is not ready for commitments */
+    Offer public offer;
+
+    uint256 public stakeCount;
 
     uint256 private _placeInLine;
+    StakeVault private _stakeVault;
+
+    /** Allowed tokens  */
+    mapping(address => bool) private _allowedTokenAddresses;
 
     /** Stakes indexed by id */
     mapping(uint256 => Stake) private _stakes;
 
-    /** Allowed tokens  */
-    mapping(address => bool) private _allowedTokenAddresses;
+    /** Stakes for each account */
+    mapping(address => uint256[]) private _stakesByAccount;
 
     /** Commited stakes */
     mapping(uint256 => bool) private _stakesCommitted;
@@ -81,17 +95,23 @@ contract LaunchPool {
         uint256 poolValidDuration_,
         uint256 offerValidDuration_,
         uint256 minOfferAmount_,
-        uint256 maxOfferAmount_
+        uint256 maxOfferAmount_,
+        address stakeVaultAddress
     ) {
         require(
             allowedAddresses_.length >= 1 && allowedAddresses_.length <= 3,
             "There must be at least 1 and at most 3 tokens"
         );
         name = _poolName;
-        poolValidDuration = poolValidDuration_;
-        offerValidDuration = offerValidDuration_;
-        minOfferAmount = minOfferAmount_;
-        maxOfferAmount = maxOfferAmount_;
+        poolExpiry.startTime = block.timestamp;
+        poolExpiry.duration = poolValidDuration_;
+
+        offerExpiry.duration = offerValidDuration_;
+
+        offer.bounds.minimum = minOfferAmount_;
+        offer.bounds.maximum = maxOfferAmount_;
+
+        _stakeVault = StakeVault(stakeVaultAddress);
 
         // TOOD on my testing a for loop didn't work here, hence this uglyness.
         _allowedTokenAddresses[allowedAddresses_[0]] = true;
@@ -118,7 +138,7 @@ contract LaunchPool {
 
     modifier isPoolOpen() {
         require(
-            (poolStartTime + poolValidDuration <= block.timestamp) &&
+            (poolExpiry.startTime + poolExpiry.duration <= block.timestamp) &&
                 (!_atStage(Stages.Closed)),
             "LaunchPool is closed"
         );
@@ -152,7 +172,7 @@ contract LaunchPool {
 
     modifier isOfferOpen() {
         require(
-            (offerStartTime + offerValidDuration <= block.timestamp) &&
+            (offerExpiry.startTime + offerExpiry.duration <= block.timestamp) &&
                 _atStage(Stages.AcceptingCommitments),
             "Offer is closed"
         );
@@ -169,6 +189,7 @@ contract LaunchPool {
         canStake
     {
         address payee = msg.sender;
+        // `_placeInLine` has to start in 1 because 0 represent not found.
         uint256 stakeId = ++_placeInLine;
 
         // This adds a new stake to _stakes
@@ -179,31 +200,69 @@ contract LaunchPool {
         s.token = token;
         s.amount = amount;
 
-        // TODO: call the vault contract
-        // to transfer funds from user.
+        _stakesByAccount[payee].push(stakeId);
+
+        _stakeVault.depositStake(token, amount, payee);
 
         emit Staked(payee, token, amount, stakeId);
     }
 
     function unstake(uint256 stakeId)
         external
+        // If `stakeId` has already been unstaked
+        // then _stakes[stakeId].staker == address(0)
+        // and msg.sender != address(0)
         senderOwnsStake(stakeId)
         isPoolOpen
         canStake
     {
         require(!_stakesCommitted[stakeId], "cannot unstake commited stake");
 
+        address staker = msg.sender;
         Stake memory s = _stakes[stakeId];
         delete _stakes[stakeId];
+        int256 stakeIdx = _findStake(staker, stakeId);
+        assert(stakeIdx != -1);
 
-        // TODO: call vault to unstake
-        emit Unstaked(msg.sender, s.token, s.amount, stakeId);
+        _removeStakeFromAccount(staker, uint256(stakeIdx));
+
+        _stakeVault.withdrawStake(s.token, s.amount, s.staker);
+        emit Unstaked(staker, s.token, s.amount, stakeId);
     }
 
+    function _findStake(address account, uint256 stakeId)
+        private
+        view
+        returns (int256)
+    {
+        uint256 length = _stakesByAccount[account].length;
+        for (uint256 i = 0; i < length; i++) {
+            if (_stakesByAccount[account][i] == stakeId) {
+                return int256(i);
+            }
+        }
+
+        return -1;
+    }
+
+    function _removeStakeFromAccount(address account, uint256 stakeIdx)
+        private
+    {
+        uint256[] memory accountStakes = _stakesByAccount[account];
+        uint256 lastIdx = accountStakes.length - 1;
+        if (stakeIdx != lastIdx) {
+            // Move the last one to the stop we'd like to delete
+            _stakesByAccount[account][stakeIdx] = _stakesByAccount[account][
+                lastIdx
+            ];
+        }
+        _stakesByAccount[account].pop();
+    }
+
+    // TODO this should only be callable by a sponsor
     function setOffer(string memory offerUrl_) external isPoolOpen {
-        // TODO this should only be callable by a sponsor
-        offerStartTime = block.timestamp;
-        offerUrl = offerUrl_;
+        offerExpiry.startTime = block.timestamp;
+        offer.url = offerUrl_;
         stage = Stages.AcceptingCommitments;
     }
 
@@ -217,5 +276,9 @@ contract LaunchPool {
         _stakesCommitted[stakeId] = true;
 
         emit Committed(msg.sender, stakeId);
+    }
+
+    function stakesOf(address account) public view returns (uint256[] memory) {
+        return _stakesByAccount[account];
     }
 }

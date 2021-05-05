@@ -1,7 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-
 describe("Test stake vault", function() {
   let owner, acc1, token1, token2, token3, stakeVault;
 

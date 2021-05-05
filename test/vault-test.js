@@ -34,9 +34,9 @@ describe("Test stake vault", function() {
   });
 
   it("Nothing in vault", async function() {
-    expect(await stakeVault.getDepositsByToken(owner.address, token1.address)).to.equal(0);
-    expect(await stakeVault.getDepositsByToken(owner.address, token2.address)).to.equal(0);
-    expect(await stakeVault.getDepositsByToken(owner.address, token3.address)).to.equal(0);
+    expect(await stakeVault.depositsOfByToken(owner.address, token1.address)).to.equal(0);
+    expect(await stakeVault.depositsOfByToken(owner.address, token2.address)).to.equal(0);
+    expect(await stakeVault.depositsOfByToken(owner.address, token3.address)).to.equal(0);
     expect(await stakeVault.totalDeposited()).to.equal(0);
   });
 
@@ -45,21 +45,21 @@ describe("Test stake vault", function() {
 
     expect(await token1.balanceOf(owner.address)).to.equal(90);
 
-    expect(await stakeVault.getDepositsByToken(owner.address, token1.address)).to.equal(10);
-    expect(await stakeVault.getDeposits(owner.address)).to.equal(10);
+    expect(await stakeVault.depositsOfByToken(owner.address, token1.address)).to.equal(10);
+    expect(await stakeVault.depositsOf(owner.address)).to.equal(10);
     expect(await stakeVault.totalDeposited()).to.equal(10);
   });
 
   it("Deposit token1 then withdraw", async function() {
     await stakeVault.depositStake(token1.address, 10, owner.address);
 
-    expect(await stakeVault.getDepositsByToken(owner.address, token1.address)).to.equal(10);
+    expect(await stakeVault.depositsOfByToken(owner.address, token1.address)).to.equal(10);
     expect(await token1.balanceOf(owner.address)).to.equal(90);
 
     await stakeVault.withdrawStake(token1.address, 5, owner.address);
 
-    expect(await stakeVault.getDepositsByToken(owner.address, token1.address)).to.equal(5);
-    expect(await stakeVault.getDeposits(owner.address)).to.equal(5);
+    expect(await stakeVault.depositsOfByToken(owner.address, token1.address)).to.equal(5);
+    expect(await stakeVault.depositsOf(owner.address)).to.equal(5);
     expect(await stakeVault.totalDeposited()).to.equal(5);
 
     expect(await token1.balanceOf(owner.address)).to.equal(95);
@@ -74,7 +74,7 @@ describe("Test stake vault", function() {
     expect(await token2.balanceOf(owner.address)).to.equal(90);
     expect(await token3.balanceOf(owner.address)).to.equal(90);
 
-    expect(await stakeVault.getDeposits(owner.address)).to.equal(30);
+    expect(await stakeVault.depositsOf(owner.address)).to.equal(30);
     expect(await stakeVault.totalDeposited()).to.equal(30);
   });
 
@@ -97,8 +97,8 @@ describe("Test stake vault", function() {
     expect(await token1.balanceOf(acc1.address)).to.equal(90);
     expect(await token2.balanceOf(acc1.address)).to.equal(90);
 
-    expect(await stakeVault.getDeposits(owner.address)).to.equal(20);
-    expect(await stakeVault.getDeposits(acc1.address)).to.equal(20);
+    expect(await stakeVault.depositsOf(owner.address)).to.equal(20);
+    expect(await stakeVault.depositsOf(acc1.address)).to.equal(20);
     expect(await stakeVault.totalDeposited()).to.equal(40);
   });
 });

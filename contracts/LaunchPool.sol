@@ -138,7 +138,7 @@ contract LaunchPool {
 
     modifier isPoolOpen() {
         require(
-            (poolExpiry.startTime + poolExpiry.duration <= block.timestamp) &&
+            (block.timestamp <= poolExpiry.startTime + poolExpiry.duration) &&
                 (!_atStage(Stages.Closed)),
             "LaunchPool is closed"
         );
@@ -172,7 +172,7 @@ contract LaunchPool {
 
     modifier isOfferOpen() {
         require(
-            (offerExpiry.startTime + offerExpiry.duration <= block.timestamp) &&
+            (block.timestamp <= offerExpiry.startTime + offerExpiry.duration) &&
                 _atStage(Stages.AcceptingCommitments),
             "Offer is closed"
         );
@@ -191,6 +191,7 @@ contract LaunchPool {
         address payee = msg.sender;
         // `_placeInLine` has to start in 1 because 0 represent not found.
         uint256 stakeId = ++_placeInLine;
+        stakeCount++;
 
         // This adds a new stake to _stakes
         Stake storage s = _stakes[stakeId];
@@ -223,6 +224,7 @@ contract LaunchPool {
         delete _stakes[stakeId];
         int256 stakeIdx = _findStake(staker, stakeId);
         assert(stakeIdx != -1);
+        stakeCount--;
 
         _removeStakeFromAccount(staker, uint256(stakeIdx));
 

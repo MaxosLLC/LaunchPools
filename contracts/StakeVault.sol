@@ -63,15 +63,15 @@ contract StakeVault {
         assert(_depositsByAccount[payee] <= totalDeposited);
     }
 
-    function getDepositsByToken(address payee, address token)
+    function depositsOf(address payee) public view returns (uint256) {
+        return _depositsByAccount[payee];
+    }
+
+    function depositsOfByToken(address payee, address token)
         public
         view
         returns (uint256)
     {
         return _deposits[payee][token];
-    }
-
-    function getDeposits(address payee) public view returns (uint256) {
-        return _depositsByAccount[payee];
     }
 }

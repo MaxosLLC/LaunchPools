@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.3;
+pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/utils/escrow/Escrow.sol";
 import "./interfaces/IERC20Minimal.sol";
@@ -17,7 +17,7 @@ struct Stake {
 }
 
 contract LaunchPool {
-    enum Stages {AcceptingStakes, AcceptingCommitments, Funded, Closed};
+    enum Stages {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
     /** All pools start in this state  */
     Stages public stage = Stages.AcceptingStakes;
@@ -73,16 +73,13 @@ contract LaunchPool {
         uint256 stakeId
     );
 
-    event Committed(
-        address indexed payee,
-        uint256 indexed stakeId
-    );
+    event Committed(address indexed payee, uint256 indexed stakeId);
 
     constructor(
         address[] memory allowedAddresses_,
         string memory _poolName,
         uint256 poolValidDuration_,
-        uint256 offerValidDuration_
+        uint256 offerValidDuration_,
         uint256 minOfferAmount_,
         uint256 maxOfferAmount_
     ) {
@@ -107,7 +104,7 @@ contract LaunchPool {
         }
     }
 
-    function _atStage(Stage stage_) private view returns (bool) {
+    function _atStage(Stages stage_) private view returns (bool) {
         return stage_ == stage;
     }
 
@@ -122,14 +119,16 @@ contract LaunchPool {
     modifier isPoolOpen() {
         require(
             (poolStartTime + poolValidDuration <= block.timestamp) &&
-            (!_atStage(Stages.Closed)),
-            "LaunchPool is closed");
+                (!_atStage(Stages.Closed)),
+            "LaunchPool is closed"
+        );
         _;
     }
 
     modifier canStake() {
         require(
-            _atStage(Stages.AcceptingStakes) || _atStage(Stages.AcceptingCommitments),
+            _atStage(Stages.AcceptingStakes) ||
+                _atStage(Stages.AcceptingCommitments),
             "Not in desired stage"
         );
         _;
@@ -143,9 +142,9 @@ contract LaunchPool {
         _;
     }
 
-    modifier senderOwnsStake(uint stakeId) {
+    modifier senderOwnsStake(uint256 stakeId) {
         require(
-            _stake[stakeId].staker == msg.sender,
+            _stakes[stakeId].staker == msg.sender,
             "Account not authorized to unstake"
         );
         _;
@@ -154,7 +153,9 @@ contract LaunchPool {
     modifier isOfferOpen() {
         require(
             (offerStartTime + offerValidDuration <= block.timestamp) &&
-            "Offer is closed");
+                _atStage(Stages.AcceptingCommitments),
+            "Offer is closed"
+        );
         _;
     }
 
@@ -168,14 +169,7 @@ contract LaunchPool {
         canStake
     {
         address payee = msg.sender;
-
-        if (!_accountHasStaked(payee)) {
-            _accountsStakeCount += 1;
-        }
-
-        _stakesByAccount[payee] = _stakesByAccount[payee] + amount;
-        _totalStaked += amount;
-        uint stakeId = ++_placeInLine;
+        uint256 stakeId = ++_placeInLine;
 
         // This adds a new stake to _stakes
         Stake storage s = _stakes[stakeId];
@@ -191,70 +185,37 @@ contract LaunchPool {
         emit Staked(payee, token, amount, stakeId);
     }
 
-    function unstake(uint stakeId)
+    function unstake(uint256 stakeId)
         external
         senderOwnsStake(stakeId)
         isPoolOpen
-        canStake 
+        canStake
     {
-        require(!_committedStakes[stakeId], "cannot unstake commited stake");
+        require(!_stakesCommitted[stakeId], "cannot unstake commited stake");
 
-        Stake s = _stakes[stakeId];
+        Stake memory s = _stakes[stakeId];
         delete _stakes[stakeId];
 
         // TODO: call vault to unstake
-        emit Unstaked(msg.sender, token, currStake, stakeId);
+        emit Unstaked(msg.sender, s.token, s.amount, stakeId);
     }
 
-    function setOffer(string storage offerUrl_) isPoolOpen external {
+    function setOffer(string memory offerUrl_) external isPoolOpen {
         // TODO this should only be callable by a sponsor
         offerStartTime = block.timestamp;
         offerUrl = offerUrl_;
         stage = Stages.AcceptingCommitments;
     }
 
-    function commit(uint stakeId)
+    function commit(uint256 stakeId)
         external
         isPoolOpen
         isOfferOpen
         canCommit
         senderOwnsStake(stakeId)
     {
-        _committedStakes[stakeId] = true;
+        _stakesCommitted[stakeId] = true;
 
         emit Committed(msg.sender, stakeId);
-    }
-
-    function stakesOf(address payee, address token)
-        public
-        view
-        returns (uint256)
-    {
-        return _stakes[payee][token];
-    }
-
-    function totalStakesOf(address payee) public view returns (uint256) {
-        return _stakesByAccount[payee];
-    }
-
-    function totalStakes() public view returns (uint256) {
-        return _totalStaked;
-    }
-
-    function isFunded() public view returns (bool) {
-        return _totalStaked >= minCommitment;
-    }
-
-    function endTimestamp() public view returns (uint256) {
-        return _endTimestamp;
-    }
-
-    /** Kind of a weird name. Will change it eventually. */
-    function stakeCount() public view returns (uint256) {
-        return _accountsStakeCount;
-    }
-
-    function _accountHasStaked(address account) private view returns (bool) {
-        return _stakesByAccount[account] != 0;
     }
 }

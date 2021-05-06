@@ -18,7 +18,7 @@ task("accounts", "Prints the list of accounts", async () => {
  */
 module.exports = {
   defaultNetwork: 'hardhat',
-  solidity: "0.8.3",
+  solidity: "0.8.4",
   networks: {
     hardhat: {
       chainId: 1337

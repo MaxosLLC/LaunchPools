@@ -2,7 +2,7 @@
 pragma solidity 0.8.4;
 
 import "./StakeVault.sol";
-import "@openzeppelin/contracts/utils/escrow/Escrow.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
 struct Stake {
@@ -42,7 +42,7 @@ struct Offer {
     string url;
 }
 
-contract LaunchPool {
+contract LaunchPool is Ownable {
     enum Stages {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
     string public name;
@@ -57,6 +57,7 @@ contract LaunchPool {
     Offer public offer;
 
     uint256 public stakeCount;
+    uint256 public totalCommitments;
 
     uint256 private _placeInLine;
     StakeVault private _stakeVault;
@@ -137,11 +138,11 @@ contract LaunchPool {
     }
 
     modifier isPoolOpen() {
-        require(
-            (block.timestamp <= poolExpiry.startTime + poolExpiry.duration) &&
-                (!_atStage(Stages.Closed)),
-            "LaunchPool is closed"
-        );
+        if (block.timestamp > poolExpiry.startTime + poolExpiry.duration) {
+            stage = Stages.Closed;
+        }
+
+        require(!_atStage(Stages.Closed), "LaunchPool is closed");
         _;
     }
 
@@ -184,8 +185,8 @@ contract LaunchPool {
      */
     function stake(address token, uint256 amount)
         external
-        isTokenAllowed(token)
         isPoolOpen
+        isTokenAllowed(token)
         canStake
     {
         address payee = msg.sender;
@@ -210,11 +211,11 @@ contract LaunchPool {
 
     function unstake(uint256 stakeId)
         external
+        isPoolOpen
         // If `stakeId` has already been unstaked
         // then _stakes[stakeId].staker == address(0)
         // and msg.sender != address(0)
         senderOwnsStake(stakeId)
-        isPoolOpen
         canStake
     {
         require(!_stakesCommitted[stakeId], "cannot unstake commited stake");
@@ -261,8 +262,7 @@ contract LaunchPool {
         _stakesByAccount[account].pop();
     }
 
-    // TODO this should only be callable by a sponsor
-    function setOffer(string memory offerUrl_) external isPoolOpen {
+    function setOffer(string memory offerUrl_) external isPoolOpen onlyOwner {
         offerExpiry.startTime = block.timestamp;
         offer.url = offerUrl_;
         stage = Stages.AcceptingCommitments;
@@ -275,12 +275,20 @@ contract LaunchPool {
         canCommit
         senderOwnsStake(stakeId)
     {
+        require(!_stakesCommitted[stakeId], "Stake is already committed");
+        require(_stakes[stakeId].staker != address(0), "Stake doesn't exist");
+
         _stakesCommitted[stakeId] = true;
+        totalCommitments += _stakes[stakeId].amount;
 
         emit Committed(msg.sender, stakeId);
     }
 
     function stakesOf(address account) public view returns (uint256[] memory) {
         return _stakesByAccount[account];
+    }
+
+    function canRedeemOffer() public view returns (bool) {
+        return totalCommitments >= offer.bounds.minimum;
     }
 }

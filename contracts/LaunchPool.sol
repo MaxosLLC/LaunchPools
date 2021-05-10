@@ -291,4 +291,23 @@ contract LaunchPool is Ownable {
     function canRedeemOffer() public view returns (bool) {
         return totalCommitments >= offer.bounds.minimum;
     }
+
+    /** @dev Use all commitments to try and redeem the offer.
+     * If there are more commitments than `offer.bounds.maximum`,
+     * the latest commitment is clipped and the remaining amount is
+     * sent back
+     */
+    function redeemOffer() public onlyOwner {
+        require(canRedeemOffer(), "Not enough funds committed");
+
+        for (uint256 stakeId = 1; stakeId <= stakeCount; stakeId++) {
+            if (_stakes[stakeId].staker == address(0)) {
+                continue;
+            }
+
+            if (!_stakesCommitted[stakeId]) {
+                continue;
+            }
+        }
+    }
 }

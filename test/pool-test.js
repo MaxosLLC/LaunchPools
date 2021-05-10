@@ -175,7 +175,7 @@ describe("Staking in LaunchPool", function() {
 
 /**
  * Functionality left to add:
- * 1. Check which committed stakes are able to participate.
+ * 1. Redeem an offer
  * 2. Try to stake/unstake when you cannot (the state is closed).
  */
 

@@ -2,15 +2,27 @@
 pragma solidity 0.8.4;
 
 import "./interfaces/IERC20Minimal.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
-contract StakeVault {
+contract StakeVault is Ownable {
     address private _poolContract;
 
     uint256 public totalDeposited;
 
+    /** @dev Holds will be withdrawn to this address. Cannot be changed once the contract is deployed */
+    address public withdrawAddress;
+
+    constructor(address withdrawAddress_) {
+        withdrawAddress = withdrawAddress_;
+    }
+
     mapping(address => mapping(address => uint256)) private _deposits;
     mapping(address => uint256) private _depositsByAccount;
+
+    mapping(address => bool) private _shouldWithdrawToken;
+    mapping(address => uint256) private _amountToWithdraw;
+    address[] private _tokensToWithdraw;
 
     modifier calledByPool() {
         require(_poolContract != address(0), "pool contract not set");
@@ -18,7 +30,7 @@ contract StakeVault {
         _;
     }
 
-    function setPoolContract(address poolContract) public {
+    function setPoolContract(address poolContract) public onlyOwner {
         _poolContract = poolContract;
     }
 
@@ -47,13 +59,11 @@ contract StakeVault {
         address payee
     ) public calledByPool {
         require(
-            amount <= _depositsByAccount[payee],
+            depositsOfByToken(payee, token) >= amount,
             "Player has less than requested amount"
         );
 
-        totalDeposited -= amount;
-        _depositsByAccount[payee] -= amount;
-        _deposits[payee][token] -= amount;
+        _removeAmount(payee, token, amount);
 
         require(
             IERC20Minimal(token).transfer(payee, amount),
@@ -73,5 +83,50 @@ contract StakeVault {
         returns (uint256)
     {
         return _deposits[payee][token];
+    }
+
+    function _removeAmount(
+        address payee,
+        address token,
+        uint256 amount
+    ) private {
+        totalDeposited -= amount;
+        _depositsByAccount[payee] -= amount;
+        _deposits[payee][token] -= amount;
+    }
+
+    /** @dev encumbers a token from a payee to be later withdrawn by an account
+     */
+    function encumber(
+        address payee,
+        address token,
+        uint256 amount
+    ) public onlyOwner {
+        require(
+            depositsOfByToken(payee, token) >= amount,
+            "Not enough tokens to encumber"
+        );
+
+        if (!_shouldWithdrawToken[token]) {
+            _shouldWithdrawToken[token] = true;
+            _tokensToWithdraw.push(token);
+        }
+
+        _removeAmount(payee, token, amount);
+        _amountToWithdraw[token] += amount;
+    }
+
+    function withdraw() public onlyOwner {
+        for (int256 i = 0; i < int256(_tokensToWithdraw.length); i++) {
+            address token = _tokensToWithdraw[uint256(i)];
+
+            require(
+                IERC20Minimal(token).transfer(
+                    withdrawAddress,
+                    _amountToWithdraw[token]
+                ),
+                "Could not send the moneys"
+            );
+        }
     }
 }

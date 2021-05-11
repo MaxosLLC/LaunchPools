@@ -27,15 +27,21 @@ At this point, you have a local blockchain running on `localhost:8545` ready to 
 These are the most important methods from the `LaunchPool.sol` contract. Please refer to the source code for more
 details
 
-`stake(token, amount)` - Staking token. Only ERC20 tokens are allowed. Transfers from the token to the contract.
-`unstake(token)` - Unstake token. Transfers back to the token holder.
+`stake(address token, uint256 amount)` - Adds a new stake. This stake is given an id. To retrieve this id, you need
+to listen inspect the `Staked` event. Only ERC20 tokens are allowed. Transfers from the token to the contract.
 
-`minCommitment`, `maxCommitment` and `name` - Public members.
+`unstake(uint256 stakeId)` - Remove stake. Should specify the stake id.
 
-`stakesOf(account, token)` - token amount staked by account.
-`totalStakesOf(account)` - total amount of tokens staked by account.
-`totalStakes()` - total amount staked by all accounts.
-`isFunded()` - Returns true if `totalStakes()` is >= `minCommitment`
+`setOffer(string memory offerUrl_)` - Set the offer and start the timer.
+
+`commit(uint256 stakeId)` - Commit the desired stake.
+
+`stakesOf(address account)` - Total stakes of an address.
+
+`canRedeemOffer()` - Checks if the offer can be redeemed.
+
+`redeemOffer()` - Tries to redeem the offer. Checks all commitments and
+transfers all the staked funds to an address set for the StakeVault contract.
 
 Kovan Contract Adresses:
 

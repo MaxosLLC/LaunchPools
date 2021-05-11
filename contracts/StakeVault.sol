@@ -5,6 +5,10 @@ import "./interfaces/IERC20Minimal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
+/// @notice A vault to manage tokens
+/// @dev Vault contract used to manage token's transfers for a launchpool.
+///     When a vault is created, a `withdrawAddress` is set. This address will
+///     receive the funds once they are withdrawn.
 contract StakeVault is Ownable {
     address private _poolContract;
 
@@ -30,10 +34,12 @@ contract StakeVault is Ownable {
         _;
     }
 
+    /// @dev Of the pool contract is not set, none of the methods in this contract work.
     function setPoolContract(address poolContract) public onlyOwner {
         _poolContract = poolContract;
     }
 
+    /// @notice Transfer ERC20 funds from the user to the vault.
     function depositStake(
         address token,
         uint256 amount,
@@ -53,6 +59,7 @@ contract StakeVault is Ownable {
         assert(_depositsByAccount[payee] <= totalDeposited);
     }
 
+    /// @notice Withdraw a stake.
     function withdrawStake(
         address token,
         uint256 amount,
@@ -95,8 +102,9 @@ contract StakeVault is Ownable {
         _deposits[payee][token] -= amount;
     }
 
-    /** @dev encumbers a token from a payee to be later withdrawn by an account
-     */
+    /// @dev encumbers a token from a payee to be later withdrawn by an account.
+    ///     In order words, it marks a certain amount for certain token to
+    ///     be sent to the `withdrawAddress`
     function encumber(
         address payee,
         address token,
@@ -116,6 +124,7 @@ contract StakeVault is Ownable {
         _amountToWithdraw[token] += amount;
     }
 
+    /// @dev Withdraw the funds to the specified address.
     function withdraw() public calledByPool {
         for (int256 i = 0; i < int256(_tokensToWithdraw.length); i++) {
             address token = _tokensToWithdraw[uint256(i)];

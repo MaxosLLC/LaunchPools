@@ -5,55 +5,60 @@ import "./StakeVault.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
+/// @title A stake
 struct Stake {
-    /** Starts with 1. Determines the position in line as well as the id. */
+    /// @notice Identifier for a stake.
+    /// @dev This id is given every time a new stake is created. It's always increasing.
     uint256 id;
-    /** Account who added this stake. */
+    /// @notice The account that added this stake
     address staker;
-    /** Token being staked. For now only ERC20 */
+    /// @notice Address of token being staked.
     address token;
-    /** Amount staked */
+    /// @notice Amount being staked
+    /// @dev We are assuming all tokens have the same amount of digits.
     uint256 amount;
 }
 
-/** @dev This helps us track how long a certain thing is valid or available for.*/
+/// @dev This helps us track how long a certain thing is valid or available for.
 struct ExpiryData {
     uint256 startTime;
     uint256 duration;
 }
 
-/** @dev The min and max values for an offer.
- * If we have less than `minimum`, the offer cannot be redeemed.
- * If we have more than `maximum`, some stakes will not be considered.
- */
+/// @notice The min and max values for an offer.
+/// @dev The min and max values for an offer.
+///          if we have less than `minimum`, the offer cannot be redeemed.
+///          if we have more than `maximum`, some stakes will not be considered.
+///
 struct OfferBounds {
     uint256 minimum;
-    /** @dev the maximum amount an offer can get. All stakes that are above this value
-     * will not be used and will be returned to the account that staked them initially.
-     * TODO: what do we do when stakedSoFar + currentStake > maxOfferAmount. We could clip
-     * the stake and return the remainder.
-     */
+    /// @dev the maximum amount an offer can get. All stakes that are above this value
+    ///     will not be used and will be returned to the account that staked them initially.
+    ///     TODO: what do we do when stakedSoFar + currentStake > maxOfferAmount. We could clip
+    ///     the stake and return the remainder.
+    ///
     uint256 maximum;
 }
 
-/** @dev data of an offer */
+/// @dev data of an offer
 struct Offer {
     OfferBounds bounds;
     string url;
 }
 
+/// @title A launch pool
 contract LaunchPool is Ownable {
     enum Stages {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
     string public name;
 
-    /** All pools start in this state  */
+    // All pools start in this state
     Stages public stage = Stages.AcceptingStakes;
 
     ExpiryData public poolExpiry;
     ExpiryData public offerExpiry;
 
-    /** When `offer.url` is empty, the pool is not ready for commitments */
+    // When `offer.url` is empty, the pool is not ready for commitments
     Offer public offer;
 
     uint256 public stakeCount;
@@ -62,16 +67,11 @@ contract LaunchPool is Ownable {
     uint256 private _placeInLine;
     StakeVault private _stakeVault;
 
-    /** Allowed tokens  */
     mapping(address => bool) private _allowedTokenAddresses;
 
-    /** Stakes indexed by id */
+    // stakes indexed by id
     mapping(uint256 => Stake) private _stakes;
-
-    /** Stakes for each account */
     mapping(address => uint256[]) private _stakesByAccount;
-
-    /** Commited stakes */
     mapping(uint256 => bool) private _stakesCommitted;
 
     event Staked(
@@ -92,6 +92,8 @@ contract LaunchPool is Ownable {
 
     event UsedToFund(uint256 indexed stakeId, uint256 amount);
 
+    /// @notice creates a new launchpool.
+    /// @dev only 3 tokens are allowed to be staked.
     constructor(
         address[] memory allowedAddresses_,
         string memory _poolName,
@@ -182,9 +184,9 @@ contract LaunchPool is Ownable {
         _;
     }
 
-    /** @dev This allows you to stake some ERC20 token. Make sure
-     * You `ERC20.approve` to `LaunchPool` contract before you stake.
-     */
+    /// @notice Stake an ERC20 token
+    /// @dev Token being staked should be `ERC20.approve`d to `StakeVault` contract,
+    ///     otherwise this function reverts.
     function stake(address token, uint256 amount)
         external
         isPoolOpen
@@ -213,6 +215,8 @@ contract LaunchPool is Ownable {
         return stakeId;
     }
 
+    /// @notice Remove a stake and returns funds to user.
+    /// @dev This should be called by the staking user, otherwise it will revert.
     function unstake(uint256 stakeId)
         external
         isPoolOpen
@@ -266,12 +270,15 @@ contract LaunchPool is Ownable {
         _stakesByAccount[account].pop();
     }
 
+    /// @notice Sets the offer
+    /// @dev Setting an offer causes the launchpool to be open for commits.
     function setOffer(string memory offerUrl_) external isPoolOpen onlyOwner {
         offerExpiry.startTime = block.timestamp;
         offer.url = offerUrl_;
         stage = Stages.AcceptingCommitments;
     }
 
+    /// @notice Commit a previously added stake.
     function commit(uint256 stakeId)
         external
         isPoolOpen
@@ -300,11 +307,10 @@ contract LaunchPool is Ownable {
         return _isAfterOfferClose() && totalCommitments >= offer.bounds.minimum;
     }
 
-    /** @dev Use all commitments to try and redeem the offer.
-     * If there are more commitments than `offer.bounds.maximum`,
-     * the latest commitment is clipped and the remaining amount is
-     * sent back
-     */
+    /// @notice Redeem an offer.
+    /// @dev Try to use all committments to fulfill and redeem an offer.
+    ///     This involves sending all collected funds to an address
+    ///     specified on the vault.
     function redeemOffer() public onlyOwner {
         require(canRedeemOffer(), "Not enough funds committed");
         require(_isAfterOfferClose(), "The offer is still open");

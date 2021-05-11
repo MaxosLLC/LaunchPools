@@ -90,6 +90,8 @@ contract LaunchPool is Ownable {
 
     event Committed(address indexed payee, uint256 indexed stakeId);
 
+    event UsedToFund(uint256 indexed stakeId, uint256 amount);
+
     constructor(
         address[] memory allowedAddresses_,
         string memory _poolName,
@@ -188,6 +190,7 @@ contract LaunchPool is Ownable {
         isPoolOpen
         isTokenAllowed(token)
         canStake
+        returns (uint256)
     {
         address payee = msg.sender;
         // `_placeInLine` has to start in 1 because 0 represent not found.
@@ -207,6 +210,7 @@ contract LaunchPool is Ownable {
         _stakeVault.depositStake(token, amount, payee);
 
         emit Staked(payee, token, amount, stakeId);
+        return stakeId;
     }
 
     function unstake(uint256 stakeId)
@@ -288,8 +292,12 @@ contract LaunchPool is Ownable {
         return _stakesByAccount[account];
     }
 
+    function _isAfterOfferClose() private view returns (bool) {
+        return block.timestamp >= offerExpiry.startTime + offerExpiry.duration;
+    }
+
     function canRedeemOffer() public view returns (bool) {
-        return totalCommitments >= offer.bounds.minimum;
+        return _isAfterOfferClose() && totalCommitments >= offer.bounds.minimum;
     }
 
     /** @dev Use all commitments to try and redeem the offer.
@@ -299,8 +307,10 @@ contract LaunchPool is Ownable {
      */
     function redeemOffer() public onlyOwner {
         require(canRedeemOffer(), "Not enough funds committed");
+        require(_isAfterOfferClose(), "The offer is still open");
 
         for (uint256 stakeId = 1; stakeId <= stakeCount; stakeId++) {
+            console.log("here", stakeId);
             if (_stakes[stakeId].staker == address(0)) {
                 continue;
             }
@@ -308,6 +318,25 @@ contract LaunchPool is Ownable {
             if (!_stakesCommitted[stakeId]) {
                 continue;
             }
+
+            console.log("here1", stakeId);
+
+            // TODO: look into re-entrancy problems.
+            _stakeVault.encumber(
+                _stakes[stakeId].staker,
+                _stakes[stakeId].token,
+                _stakes[stakeId].amount
+            );
+
+            console.log("here2", stakeId);
+
+            _stakesCommitted[stakeId] = false;
+            emit UsedToFund(stakeId, _stakes[stakeId].amount);
         }
+
+        stage = Stages.Funded;
+        totalCommitments = 0;
+
+        _stakeVault.withdraw();
     }
 }

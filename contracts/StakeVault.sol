@@ -101,7 +101,7 @@ contract StakeVault is Ownable {
         address payee,
         address token,
         uint256 amount
-    ) public onlyOwner {
+    ) public calledByPool {
         require(
             depositsOfByToken(payee, token) >= amount,
             "Not enough tokens to encumber"
@@ -116,7 +116,7 @@ contract StakeVault is Ownable {
         _amountToWithdraw[token] += amount;
     }
 
-    function withdraw() public onlyOwner {
+    function withdraw() public calledByPool {
         for (int256 i = 0; i < int256(_tokensToWithdraw.length); i++) {
             address token = _tokensToWithdraw[uint256(i)];
 

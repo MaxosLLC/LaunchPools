@@ -1,9 +1,9 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-async function _deployStakeVault() {
+async function _deployStakeVault(withdrawAccount) {
     const StakeVault = await ethers.getContractFactory("StakeVault");
-    return await StakeVault.deploy();
+    return await StakeVault.deploy(withdrawAccount.address);
 }
 
 describe("Staking in LaunchPool", function() {
@@ -18,7 +18,7 @@ describe("Staking in LaunchPool", function() {
     token2 = await MockERC20.deploy(initialAmount);
     token3 = await MockERC20.deploy(initialAmount);
 
-    stakeVault = await _deployStakeVault();
+    stakeVault = await _deployStakeVault(owner);
 
     const LaunchPool = await ethers.getContractFactory("LaunchPool");
     launchPool = await LaunchPool.deploy(
@@ -188,7 +188,7 @@ describe("Staking and Committing", function() {
     MockERC20 = await ethers.getContractFactory("MockERC20");
     token1 = await MockERC20.deploy(100);
 
-    stakeVault = await _deployStakeVault();
+    stakeVault = await _deployStakeVault(owner);
 
     const LaunchPool = await ethers.getContractFactory("LaunchPool");
     launchPool = await LaunchPool.deploy(
@@ -258,7 +258,7 @@ describe("timing errors", () => {
     const MockERC20 = await ethers.getContractFactory("MockERC20");
     const token1 = await MockERC20.deploy(100);
 
-    const stakeVault = await _deployStakeVault();
+    const stakeVault = await _deployStakeVault(acc1);
     const LaunchPool = await ethers.getContractFactory("LaunchPool");
     launchPool = await LaunchPool.deploy(
       [token1.address],
@@ -277,5 +277,88 @@ describe("timing errors", () => {
 
     await expect(launchPool.connect(acc1).commit(1))
         .to.be.reverted;
+  });
+});
+
+describe("Stake and redeem offer", () => {
+  let owner, acc1, acc2, rcvAcc, token1, token2, stakeVault, launchPool;
+
+  async function _mintTokensAndApprove(token, account, amount) {
+    await token.mint(account.address, amount);
+    await token.connect(account).approve(stakeVault.address, amount);
+  }
+
+  async function _deployPool(offerValidTime) {
+    [ owner, acc1, acc2, rcvAcc ] = await ethers.getSigners();
+
+    MockERC20 = await ethers.getContractFactory("MockERC20");
+    token1 = await MockERC20.deploy(100);
+    token2 = await MockERC20.deploy(100);
+
+    stakeVault = await _deployStakeVault(rcvAcc);
+
+    const LaunchPool = await ethers.getContractFactory("LaunchPool");
+    launchPool = await LaunchPool.deploy(
+      [token1.address, token2.address],
+      "testpool1",
+      60 * 60 * 24 * 7, // 7 days
+      offerValidTime,
+      100,
+      10000,
+      stakeVault.address
+    );
+
+    await stakeVault.setPoolContract(launchPool.address);
+    await launchPool.setOffer("asdf");
+
+    await _mintTokensAndApprove(token1, acc1, 100);
+    await _mintTokensAndApprove(token1, acc2, 100);
+
+    await _mintTokensAndApprove(token2, acc1, 100);
+    await _mintTokensAndApprove(token2, acc2, 100);
+  }
+
+  async function _stakeAndCommit(account, token, amount) {
+    const tx = await launchPool.connect(account).stake(token.address, amount);
+    const receipt = await tx.wait(0);
+
+    const stakeEvent = receipt.events.filter(evt => evt?.event === 'Staked')[0];
+    const stakeId = stakeEvent.args.stakeId;
+    await launchPool.connect(account).commit(stakeId);
+  }
+
+  beforeEach("setup pool", async () => {
+    await _deployPool(86400);
+  })
+
+  it("cannot redeem when offer is still open", async () => {
+    await _stakeAndCommit(acc1, token1, 10);
+    await _stakeAndCommit(acc1, token2, 50);
+    await _stakeAndCommit(acc1, token1, 50);
+
+    expect(await launchPool.canRedeemOffer()).to.equal(false);
+    await expect(launchPool.redeemOffer()).to.be.reverted;
+  });
+
+  _advanceTimeAndMineBlock = async () => {
+    await owner.provider.send('evm_increaseTime', [60 * 60 * 25]);
+    await owner.provider.send('evm_mine');
+  }
+
+  it("C,S and redeem with only one account", async () => {
+    await _stakeAndCommit(acc1, token1, 10);
+    await _stakeAndCommit(acc1, token2, 50);
+    await _stakeAndCommit(acc1, token1, 50);
+
+    expect(await launchPool.canRedeemOffer()).to.equal(false);
+
+    _advanceTimeAndMineBlock();
+    expect(await launchPool.canRedeemOffer()).to.equal(true);
+    await launchPool.redeemOffer();
+
+    expect(await token1.balanceOf(acc1.address)).to.equal(40);
+    expect(await token2.balanceOf(acc1.address)).to.equal(50);
+    expect(await token1.balanceOf(rcvAcc.address)).to.equal(60);
+    expect(await token2.balanceOf(rcvAcc.address)).to.equal(50);
   });
 });

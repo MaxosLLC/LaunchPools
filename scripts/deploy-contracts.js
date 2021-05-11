@@ -6,6 +6,8 @@
 const { BigNumber } = require("@ethersproject/bignumber");
 const hh = require("hardhat");
 
+const SPONSOR_ADDRESS = '0xFe2de4c96C992136eadcF2EdaDF74a091fA4267C';
+
 async function main() {
   // Hardhat always runs the compile task when running scripts with its command
   // line interface.
@@ -14,24 +16,37 @@ async function main() {
   // manually to make sure everything is compiled
   await hh.run('compile');
 
-  // const MockERC20 = await hh.ethers.getContractFactory("MockERC20");
-  // const mockERC20 = await MockERC20.deploy(100);
+  const MockERC20 = await hh.ethers.getContractFactory("MockERC20");
+  const mockERC20 = await MockERC20.deploy(100);
 
-  // await mockERC20.deployed();
-  const MOCKERC20 = "0xeA096Ba8979893CF64B7b67eF84BcD9C0cDe925c";
+  await mockERC20.deployed();
+  // const MOCKERC20 = "0xeA096Ba8979893CF64B7b67eF84BcD9C0cDe925c";
   // const DAI = "0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa";
   // const USDC = "0x75b0622cec14130172eae9cf166b92e5c112faff";
 
-  const currentTime = Math.round(Date.now() / 1000) + (3600 * 24 * 200);
+  const StakeVault = await hh.ethers.getContractFactory("StakeVault");
+  const stakeVault = await StakeVault.deploy(SPONSOR_ADDRESS);
+  await stakeVault.deployed();
+
   const LaunchPool = await hh.ethers.getContractFactory("LaunchPool");
 
   const minAmount = BigNumber.from("5000000000000000000000000");
   const maxAmount = BigNumber.from("1000000000000000000000000000000000");
-  const launchPool = await LaunchPool.deploy([MOCKERC20], "testPool1", minAmount.toHexString(), maxAmount.toHexString(), currentTime);
+  const launchPool = await LaunchPool.deploy(
+    [mockERC20.address],
+    "testPool1",
+    60 * 60 * 24 * 365,
+    60 * 60 * 24 * 7,
+    minAmount.toHexString(),
+    maxAmount.toHexString(),
+    stakeVault.address
+  );
 
   await launchPool.deployed();
 
-  console.log("LaunchPool:", launchPool.address);
+  console.log("MockERC20:", mockERC20.address,
+    "\nStakeVault:", stakeVault.address,
+    "\nLaunchPool:", launchPool.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

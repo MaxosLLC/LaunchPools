@@ -88,7 +88,7 @@ contract LaunchPoolTracker is Ownable {
 
     mapping(address => bool) private _allowedTokenAddresses;
     uint256 private _curPoolId;
-    mapping(uint256 => LaunchPool) private _poolsById;
+    mapping(uint256 => LaunchPool) public poolsById;
     uint256[] public poolIds;
 
     event Staked(
@@ -138,7 +138,7 @@ contract LaunchPoolTracker is Ownable {
         address stakeVaultAddress) public {
 
         uint256 currPoolId = ++_curPoolId;
-        LaunchPool storage lp = _poolsById[currPoolId];
+        LaunchPool storage lp = poolsById[currPoolId];
 
         lp.name = _poolName;
         lp.stage = Stages.AcceptingStakes;
@@ -154,7 +154,7 @@ contract LaunchPoolTracker is Ownable {
     }
 
     function _atStage(uint256 poolId, Stages stage_) private view returns (bool) {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
         return lp.stage == stage_;
     }
 
@@ -167,7 +167,7 @@ contract LaunchPoolTracker is Ownable {
     }
 
     modifier isPoolOpen(uint256 poolId) {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
 
         if (block.timestamp > lp.poolExpiry.startTime + lp.poolExpiry.duration) {
             lp.stage = Stages.Closed;
@@ -195,7 +195,7 @@ contract LaunchPoolTracker is Ownable {
     }
 
     modifier senderOwnsStake(uint256 poolId, uint256 stakeId) {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
         require(
             lp._stakes[stakeId].staker == msg.sender,
             "Account not authorized to unstake"
@@ -204,7 +204,7 @@ contract LaunchPoolTracker is Ownable {
     }
 
     modifier isOfferOpen(uint256 poolId) {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
 
         require(
             (block.timestamp <= lp.offerExpiry.startTime + lp.offerExpiry.duration) &&
@@ -223,7 +223,7 @@ contract LaunchPoolTracker is Ownable {
         isTokenAllowed(token)
         canStake(poolId)
         returns (uint256) {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
         address payee = msg.sender;
         // `_placeInLine` has to start in 1 because 0 represent not found.
         uint256 stakeId = ++lp._placeInLine;
@@ -255,7 +255,7 @@ contract LaunchPoolTracker is Ownable {
         senderOwnsStake(poolId, stakeId)
         canStake(poolId)
     {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
         require(!lp._stakesCommitted[stakeId], "cannot unstake commited stake");
 
         address staker = msg.sender;
@@ -279,7 +279,7 @@ contract LaunchPoolTracker is Ownable {
         view
         returns (int256)
     {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
 
         uint256 length = lp._stakesByAccount[account].length;
         for (uint256 i = 0; i < length; i++) {
@@ -294,7 +294,7 @@ contract LaunchPoolTracker is Ownable {
     function _removeStakeFromAccount(uint256 poolId, address account, uint256 stakeIdx)
         private
     {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
 
         uint256[] memory accountStakes = lp._stakesByAccount[account];
         uint256 lastIdx = accountStakes.length - 1;
@@ -310,7 +310,7 @@ contract LaunchPoolTracker is Ownable {
     /// @notice Sets the offer
     /// @dev Setting an offer causes the launchpool to be open for commits.
     function setOffer(uint256 poolId, string memory offerUrl_) external isPoolOpen(poolId) onlyOwner {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
 
         lp.offerExpiry.startTime = block.timestamp;
         lp.offer.url = offerUrl_;
@@ -325,7 +325,7 @@ contract LaunchPoolTracker is Ownable {
         canCommit(poolId)
         senderOwnsStake(poolId, stakeId)
     {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
         require(!lp._stakesCommitted[stakeId], "Stake is already committed");
         require(lp._stakes[stakeId].staker != address(0), "Stake doesn't exist");
 
@@ -336,17 +336,17 @@ contract LaunchPoolTracker is Ownable {
     }
 
     function stakesOf(uint256 poolId, address account) public view returns (uint256[] memory) {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
         return lp._stakesByAccount[account];
     }
 
     function _isAfterOfferClose(uint256 poolId) private view returns (bool) {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
         return block.timestamp >= lp.offerExpiry.startTime + lp.offerExpiry.duration;
     }
 
     function canRedeemOffer(uint256 poolId) public view returns (bool) {
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
         return _isAfterOfferClose(poolId) && lp.totalCommitments >= lp.offer.bounds.minimum;
     }
 
@@ -358,7 +358,7 @@ contract LaunchPoolTracker is Ownable {
         require(canRedeemOffer(poolId), "Not enough funds committed");
         require(_isAfterOfferClose(poolId), "The offer is still open");
 
-        LaunchPool storage lp = _poolsById[poolId];
+        LaunchPool storage lp = poolsById[poolId];
         for (uint256 stakeId = 1; stakeId <= lp.stakeCount; stakeId++) {
             if (lp._stakes[stakeId].staker == address(0)) {
                 continue;

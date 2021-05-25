@@ -28,25 +28,38 @@ async function main() {
   const stakeVault = await StakeVault.deploy(SPONSOR_ADDRESS);
   await stakeVault.deployed();
 
-  const LaunchPool = await hh.ethers.getContractFactory("LaunchPool");
+  const LaunchPoolTracker = await hh.ethers.getContractFactory("LaunchPoolTracker");
+
+  const launchPoolTracker = await LaunchPoolTracker.deploy([mockERC20.address], stakeVault.address);
+
 
   const minAmount = BigNumber.from("5000000000000000000000000");
   const maxAmount = BigNumber.from("1000000000000000000000000000000000");
-  const launchPool = await LaunchPool.deploy(
-    [mockERC20.address],
+
+  
+  launchPoolTracker.addLaunchPool(
     "testPool1",
     60 * 60 * 24 * 365,
     60 * 60 * 24 * 7,
     minAmount.toHexString(),
-    maxAmount.toHexString(),
-    stakeVault.address
+    maxAmount.toHexString()
   );
 
-  await launchPool.deployed();
+  // const launchPool = await LaunchPoolTracker.deploy(
+  //   [mockERC20.address],
+  //   "testPool1",
+  //   60 * 60 * 24 * 365,
+  //   60 * 60 * 24 * 7,
+  //   minAmount.toHexString(),
+  //   maxAmount.toHexString(),
+  //   stakeVault.address
+  // );
+
+  await launchPoolTracker.deployed();
 
   console.log("MockERC20:", mockERC20.address,
     "\nStakeVault:", stakeVault.address,
-    "\nLaunchPool:", launchPool.address);
+    "\nLaunchPool:", launchPoolTracker.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

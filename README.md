@@ -24,7 +24,7 @@ At this point, you have a local blockchain running on `localhost:8545` ready to 
 
 ### API
 
-These are the most important methods from the `LaunchPool.sol` contract. Please refer to the source code for more
+These are the most important methods from the `LaunchPoolTracker.sol` contract. Please refer to the source code for more
 details
 
 `stake(address token, uint256 amount)` - Adds a new stake. This stake is given an id. To retrieve this id, you need

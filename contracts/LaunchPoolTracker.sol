@@ -74,8 +74,6 @@ contract LaunchPoolTracker is Ownable {
         /// @dev place in line
         uint256 _placeInLine;
 
-        StakeVault _stakeVault;
-
         // @dev stakeId -> Stake
         mapping(uint256 => Stake) _stakes;
 
@@ -90,6 +88,8 @@ contract LaunchPoolTracker is Ownable {
     uint256 private _curPoolId;
     mapping(uint256 => LaunchPool) public poolsById;
     uint256[] public poolIds;
+
+    StakeVault _stakeVault;
 
     event Staked(
         uint256 indexed poolId,
@@ -113,11 +113,13 @@ contract LaunchPoolTracker is Ownable {
 
     /// @notice creates a new LaunchPoolTracker.
     /// @dev up to 3 tokens are allowed to be staked.
-    constructor(address[] memory allowedAddresses_) {
+    constructor(address[] memory allowedAddresses_, address stakeVaultAddress) {
         require(
             allowedAddresses_.length >= 1 && allowedAddresses_.length <= 3,
             "There must be at least 1 and at most 3 tokens"
         );
+
+        _stakeVault = StakeVault(stakeVaultAddress);
         // TOOD on my testing a for loop didn't work here, hence this uglyness.
         _allowedTokenAddresses[allowedAddresses_[0]] = true;
         if (allowedAddresses_.length >= 2) {
@@ -134,8 +136,7 @@ contract LaunchPoolTracker is Ownable {
         uint256 poolValidDuration_,
         uint256 offerValidDuration_,
         uint256 minOfferAmount_,
-        uint256 maxOfferAmount_,
-        address stakeVaultAddress) public {
+        uint256 maxOfferAmount_) public {
 
         uint256 currPoolId = ++_curPoolId;
         LaunchPool storage lp = poolsById[currPoolId];
@@ -150,7 +151,7 @@ contract LaunchPoolTracker is Ownable {
         lp.offer.bounds.minimum = minOfferAmount_;
         lp.offer.bounds.maximum = maxOfferAmount_;
 
-        lp._stakeVault = StakeVault(stakeVaultAddress);
+        poolIds.push(currPoolId);
     }
 
     function _atStage(uint256 poolId, Stages stage_) private view returns (bool) {
@@ -239,7 +240,7 @@ contract LaunchPoolTracker is Ownable {
 
         lp._stakesByAccount[payee].push(stakeId);
 
-        lp._stakeVault.depositStake(0, token, amount, payee);
+        _stakeVault.depositStake(poolId, token, amount, payee);
 
         emit Staked(poolId, payee, token, amount, stakeId);
         return stakeId;
@@ -270,7 +271,7 @@ contract LaunchPoolTracker is Ownable {
 
         _removeStakeFromAccount(poolId, staker, uint256(stakeIdx));
 
-        lp._stakeVault.withdrawStake(0, s.token, s.amount, s.staker);
+        _stakeVault.withdrawStake(poolId, s.token, s.amount, s.staker);
         emit Unstaked(poolId, staker, s.token, s.amount, stakeId);
     }
 
@@ -340,6 +341,16 @@ contract LaunchPoolTracker is Ownable {
         return lp._stakesByAccount[account];
     }
 
+    function poolStakeCount(uint256 poolId) public view returns (uint256) {
+        LaunchPool storage lp = poolsById[poolId];
+        return lp.stakeCount;
+    }
+
+    function poolTotalCommitments(uint256 poolId) public view returns (uint256) {
+        LaunchPool storage lp = poolsById[poolId];
+        return lp.totalCommitments;
+    }
+
     function _isAfterOfferClose(uint256 poolId) private view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
         return block.timestamp >= lp.offerExpiry.startTime + lp.offerExpiry.duration;
@@ -369,7 +380,7 @@ contract LaunchPoolTracker is Ownable {
             }
 
             // TODO: look into re-entrancy problems.
-            lp._stakeVault.encumber(
+            _stakeVault.encumber(
                 poolId,
                 lp._stakes[stakeId].staker,
                 lp._stakes[stakeId].token,
@@ -383,6 +394,6 @@ contract LaunchPoolTracker is Ownable {
         lp.stage = Stages.Funded;
         lp.totalCommitments = 0;
 
-        lp._stakeVault.withdraw(poolId);
+        _stakeVault.withdraw(poolId);
     }
 }

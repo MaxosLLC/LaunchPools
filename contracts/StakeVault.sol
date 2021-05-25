@@ -87,7 +87,7 @@ contract StakeVault is Ownable {
     ) public calledByPool {
         require(
             depositsOfByToken(poolId, payee, token) >= amount,
-            "Player has less than requested amount"
+            "Account has less than requested amount"
         );
 
         _removeAmount(poolId, payee, token, amount);
@@ -110,6 +110,14 @@ contract StakeVault is Ownable {
         returns (uint256)
     {
         return _poolDeposits[poolId]._deposits[payee][token];
+    }
+
+    function depositsOfPool(uint256 poolId)
+        public
+        view
+        returns (uint256)
+    {
+        return _poolDeposits[poolId]._totalDeposited;
     }
 
     function _removeAmount(

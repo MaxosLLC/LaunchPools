@@ -35,14 +35,13 @@ async function main() {
 
   const minAmount = BigNumber.from("5000000000000000000000000");
   const maxAmount = BigNumber.from("1000000000000000000000000000000000");
-
   
-  launchPoolTracker.addLaunchPool(
-    "testPool1",
-    60 * 60 * 24 * 365,
-    60 * 60 * 24 * 7,
-    minAmount.toHexString(),
-    maxAmount.toHexString()
+  await launchPoolTracker.addLaunchPool(
+    "testpool1",
+    0,
+    0,
+    10,
+    10000,
   );
 
   // const launchPool = await LaunchPoolTracker.deploy(

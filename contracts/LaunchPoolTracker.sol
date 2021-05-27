@@ -66,10 +66,22 @@ contract LaunchPoolTracker is Ownable {
         Offer offer;
 
         /// @dev total amount of stakes
-        uint256 stakeCount;
+        /// uint256 stakeCount;
 
         /// @dev total amount committed
-        uint256 totalCommitments;
+        /// uint256 totalCommitments;
+        
+        /// dmitriy : change stakeAmount variable name
+        uint256 totalStakeAmount;
+
+        /// dmitriy : add stakeCount variable
+        uint256 stakeCount;
+
+        /// dmitriy : change commitAmount variable name
+        uint256 totalCommitAmount;
+
+        /// dmitriy : add commitCount variable
+        uint256 commitCount;
 
         /// @dev place in line
         uint256 _placeInLine;
@@ -240,6 +252,9 @@ contract LaunchPoolTracker is Ownable {
 
         lp._stakesByAccount[payee].push(stakeId);
 
+        /// dmitriy : add totalStakeAmount calculation private
+        lp.totalStakeAmount +=  amount;
+
         _stakeVault.depositStake(poolId, token, amount, payee);
 
         emit Staked(poolId, payee, token, amount, stakeId);
@@ -264,6 +279,10 @@ contract LaunchPoolTracker is Ownable {
         // TODO: Filipe suggested we dont use stakeId as an absolute number but as the
         //      index of the list. This way, we don't need to move things around like we
         //      are doing here.
+
+        /// dmitriy : add totalStakeAmount calculation private
+        lp.totalStakeAmount -= lp._stakes[stakeId].amount;
+
         delete lp._stakes[stakeId];
         int256 stakeIdx = _findStake(poolId, staker, stakeId);
         assert(stakeIdx != - 1);
@@ -331,9 +350,19 @@ contract LaunchPoolTracker is Ownable {
         require(lp._stakes[stakeId].staker != address(0), "Stake doesn't exist");
 
         lp._stakesCommitted[stakeId] = true;
-        lp.totalCommitments += lp._stakes[stakeId].amount;
+
+        /// dmitriy : change variable name
+        lp.totalCommitAmount += lp._stakes[stakeId].amount;
+
+        /// dmitriy : add commitCount calculation part
+        lp.commitCount ++;
 
         emit Committed(poolId, msg.sender, stakeId);
+    }
+
+    /// dmitriy : add get poolIds function
+    function getPoolIds() public view returns (uint256 [] memory) {
+        return poolIds;
     }
 
     function stakesOf(uint256 poolId, address account) public view returns (uint256[] memory) {
@@ -346,9 +375,24 @@ contract LaunchPoolTracker is Ownable {
         return lp.stakeCount;
     }
 
-    function poolTotalCommitments(uint256 poolId) public view returns (uint256) {
+    /// dmitriy : add get totalStakeAmount function
+    function poolTotalStakeAmount(uint256 poolId) public view returns (uint256) {
         LaunchPool storage lp = poolsById[poolId];
-        return lp.totalCommitments;
+        return lp.totalStakeAmount;
+    }
+
+    /// dmitriy : add get commitCount function
+    function poolCommitCount(uint256 poolId) public view returns (uint256) {
+        LaunchPool storage lp = poolsById[poolId];
+        return lp.commitCount;
+    }
+
+    /// dmitriy : change function name
+    function poolTotalCommitAmount(uint256 poolId) public view returns (uint256) {
+        LaunchPool storage lp = poolsById[poolId];
+
+        /// dmitriy : change variable name
+        return lp.totalCommitAmount;
     }
 
     function _isAfterOfferClose(uint256 poolId) private view returns (bool) {
@@ -358,7 +402,7 @@ contract LaunchPoolTracker is Ownable {
 
     function canRedeemOffer(uint256 poolId) public view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
-        return _isAfterOfferClose(poolId) && lp.totalCommitments >= lp.offer.bounds.minimum;
+        return _isAfterOfferClose(poolId) && lp.totalCommitAmount >= lp.offer.bounds.minimum;
     }
 
     /// @notice Redeem an offer.
@@ -392,7 +436,12 @@ contract LaunchPoolTracker is Ownable {
         }
 
         lp.stage = Stages.Funded;
-        lp.totalCommitments = 0;
+
+        /// dmitriy : change variable name
+        lp.totalCommitAmount = 0;
+
+        /// dmitriy : add commitCount calculation part
+        lp.commitCount = 0;
 
         _stakeVault.withdraw(poolId);
     }

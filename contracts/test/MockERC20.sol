@@ -52,10 +52,10 @@ contract MockERC20 is IERC20Minimal {
         address recipient,
         uint256 amount
     ) external override returns (bool) {
-        uint256 allowanceBefore = allowance[sender][msg.sender];
-        require(allowanceBefore >= amount, "allowance insufficient");
+        ///uint256 allowanceBefore = allowance[sender][msg.sender];
+        ///require(allowanceBefore >= amount, "allowance insufficient");
 
-        allowance[sender][msg.sender] = allowanceBefore - amount;
+        ///allowance[sender][msg.sender] = allowanceBefore - amount;
 
         uint256 balanceRecipient = balanceOf[recipient];
         require(

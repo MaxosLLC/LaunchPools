@@ -35,6 +35,8 @@ async function main() {
     stakeVault.address
   );
 
+  await stakeVault.setPoolContract(launchPoolTracker.address);
+
   const minAmount = BigNumber.from("5000000000000000000000000");
   const maxAmount = BigNumber.from("1000000000000000000000000000000000");
 
@@ -45,6 +47,8 @@ async function main() {
     1000000,
     1000000000,
   );
+  
+  await mockERC20.approve(stakeVault.address, 100);
 
   // const launchPool = await LaunchPoolTracker.deploy(
   //   [mockERC20.address],
@@ -60,7 +64,7 @@ async function main() {
 
   console.log("MockERC20:", mockERC20.address,
     "\nStakeVault:", stakeVault.address,
-    "\nLaunchPool:", launchPoolTracker.address);
+    "\nLaunchPoolTracker:", launchPoolTracker.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

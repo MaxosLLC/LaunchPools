@@ -27,23 +27,23 @@ contract StakeVault is Ownable {
 
     mapping(uint256 => PoolInfo) poolsById;
 
-    function addPool () public {}
+    function addPool (uint256 poolId, address sponsor, uint256 expiration) public {}
 
-    function closePool () public {}
+    function closePool (uint256 poolId) public {}
     
-    function addStake () public {}
+    function addStake (uint256 poolId, address token, uint256 amount) public {}
     
-    function unStake () public {}
+    function unStake (uint256 stakeId) public {}
     
-    function commitStake () public {}
+    function commitStake (uint256  stakeId) public {}
     
-    function unCommitStakes () public {}
+    function unCommitStakes (uint256 poolId) public {}
     
-    function getInvestorStakes () public {}
+    function getInvestorStakes (uint256 investorID) public {}
     
-    function setPoolClaimStatus () public {}
+    function setPoolClaimStatus (uint256 poolId) public {}
     
-    function claim () public {}
+    function claim (uint256 poolId) public {}
 
 
 }

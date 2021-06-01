@@ -15,5 +15,20 @@ contract LaunchPoolTracker is Ownable {
     enum LaunchPoolTrackerStatus {open, closed}
     LaunchPoolTrackerStatus status;
     StakeVault _stakeVault; //_stakeVault = StakeVault(stakeVaultAddress)
+    
+    struct LaunchPool {
+        string name;
+        address sponsor;
+        PoolStatus stage;
+        enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
+        ExpiryData poolExpiry;
+        ExpiryData offerExpiry;
+        Offer offer;
+        uint256[] stakes;
+
+        // TODO: do we need these sums? Staked, committed? We can calculate dynamically
+        // uint256 totalCommitments; 
+
+    }
 
 }

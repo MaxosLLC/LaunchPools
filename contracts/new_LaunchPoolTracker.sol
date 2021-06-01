@@ -31,4 +31,20 @@ contract LaunchPoolTracker is Ownable {
 
     }
 
+    function addStake () public {}
+
+    function getStakes () public {}
+    
+    function newOffer () public {}
+    
+    function cancelOffer () public {}
+    
+    function endOffer () public {}
+    
+    function setValues () public {}
+    
+    function getInvestmentValues () public {}
+    
+    function close () public {}
+
 }

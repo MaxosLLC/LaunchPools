@@ -21,10 +21,29 @@ contract StakeVault is Ownable {
 
     struct PoolInfo {
         address sponsor;
-        PoolStatus status;
+        // PoolStatus status;
         uint256 expiration;
     }
 
     mapping(uint256 => PoolInfo) poolsById;
+
+    function addPool () public {}
+
+    function closePool () public {}
+    
+    function addStake () public {}
+    
+    function unStake () public {}
+    
+    function commitStake () public {}
+    
+    function unCommitStakes () public {}
+    
+    function getInvestorStakes () public {}
+    
+    function setPoolClaimStatus () public {}
+    
+    function claim () public {}
+
 
 }

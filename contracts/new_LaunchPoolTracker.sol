@@ -5,14 +5,15 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract LaunchPoolTracker is Ownable {
 
-    address stakeVault;
+       mapping(address => bool) private _allowedTokenAddresses;
+    // Tokens to stake. We will upgrade this later.
 
-    enum Status {open, closed}
+    uint256 private _curPoolId; // count of pools in the array and map
+    mapping(uint256 => LaunchPool) public poolsById;
+    uint256[] public poolIds;
 
-
-    struct LaunchPool {
-
-        Status stage;
-    }
+    enum LaunchPoolTrackerStatus {open, closed}
+    LaunchPoolTrackerStatus status;
+    StakeVault _stakeVault; //_stakeVault = StakeVault(stakeVaultAddress)
 
 }

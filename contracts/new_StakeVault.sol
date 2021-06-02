@@ -30,6 +30,10 @@ contract StakeVault is Ownable {
     function addPool (uint256 poolId, address sponsor, uint256 expiration) public {}
 
     function closePool (uint256 poolId) public {}
+
+    function setPoolTracker (address _launchPoolTracker) public {
+        _poolTrackerContract = _launchPoolTracker;
+    }
     
     function addStake (uint256 poolId, address token, uint256 amount) public {}
     

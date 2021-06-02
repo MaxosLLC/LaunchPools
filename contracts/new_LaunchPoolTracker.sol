@@ -4,7 +4,7 @@ pragma solidity 0.8.4;
 
 
 
-import "./StakeVault.sol";
+import "./new_StakeVault.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -12,7 +12,7 @@ import "hardhat/console.sol";
 
 
 
-contract LaunchPoolTrackerNew is Ownable {
+contract LaunchPoolTracker is Ownable {
 
 
 
@@ -92,7 +92,7 @@ contract LaunchPoolTrackerNew is Ownable {
 
     }
 
-
+    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
     struct LaunchPool {
 
@@ -102,7 +102,6 @@ contract LaunchPoolTrackerNew is Ownable {
 
         PoolStatus stage;
 
-        enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
         ExpiryData poolExpiry;
 
@@ -164,7 +163,7 @@ contract LaunchPoolTrackerNew is Ownable {
 
         status = LaunchPoolTrackerStatus.open;
 
-        _stakevault._poolTrackerContract = address(this)
+        _stakeVault.setPoolTracker(address(this));
 
     }
 
@@ -224,7 +223,7 @@ contract LaunchPoolTrackerNew is Ownable {
 
     // @notice get all launchPool info list
 
-    function getPoolIds() public returns (uint256[]) {
+    function getPoolIds() public returns (uint256[] memory) {
 
         return poolIds;
 
@@ -234,7 +233,7 @@ contract LaunchPoolTrackerNew is Ownable {
 
     // @notice check the launchPool stage is the same as stage_
 
-    function _atStage(uint256 poolId, Stages stage_) private view returns (bool) {
+    function _atStage(uint256 poolId, PoolStatus stage_) private view returns (bool) {
 
         LaunchPool storage lp = poolsById[poolId];
 
@@ -266,13 +265,13 @@ contract LaunchPoolTrackerNew is Ownable {
 
         if (block.timestamp > lp.poolExpiry.startTime + lp.poolExpiry.duration) {
 
-            lp.stage = lp.PoolStatus.Closed;
+            lp.stage = PoolStatus.Closed;
 
         }
 
 
 
-        require(!_atStage(poolId, lp.PoolStatus.Closed), "LaunchPool is closed");
+        require(!_atStage(poolId, PoolStatus.Closed), "LaunchPool is closed");
 
         _;
 
@@ -284,9 +283,7 @@ contract LaunchPoolTrackerNew is Ownable {
 
     function addStake (uint256 poolId, uint256 stakeId) public isValidPoolId(poolId) {
 
-        LaunchPool storage lp = poolsById(poolId);
-
-
+        LaunchPool storage lp = poolsById[poolId];
 
         lp.stakes.push(stakeId);
 
@@ -296,11 +293,9 @@ contract LaunchPoolTrackerNew is Ownable {
 
     // @notice Get stake ID List in launchPool
 
-    function getStakes (uint256 poolId) public returns(uint256[]) {
+    function getStakes (uint256 poolId) public returns(uint256[] memory) {
 
-        LaunchPool storage lp = poolsById(poolId);
-
-
+        LaunchPool storage lp = poolsById[poolId];
 
         return lp.stakes;
 
@@ -312,11 +307,11 @@ contract LaunchPoolTrackerNew is Ownable {
 
     function newOffer (uint256 poolId, string memory url) public isValidPoolId(poolId) isPoolOpen(poolId) {
 
-        LaunchPool storage lp = poolsById(poolId);
+        LaunchPool storage lp = poolsById[poolId];
 
 
 
-        lp.stage = lp.PoolStatus.AcceptingCommitments;
+        lp.stage = PoolStatus.AcceptingCommitments;
 
         lp.offerExpiry.startTime = block.timestamp;
 
@@ -330,11 +325,11 @@ contract LaunchPoolTrackerNew is Ownable {
 
     function cancelOffer (uint256 poolId) public isValidPoolId(poolId) {
 
-        LaunchPool storage lp = poolsById(poolId);
+        LaunchPool storage lp = poolsById[poolId];
 
 
 
-        lp.stage = lp.PoolStatus.AcceptingStakes;
+        lp.stage = PoolStatus.AcceptingStakes;
 
     }
 
@@ -374,7 +369,7 @@ contract LaunchPoolTrackerNew is Ownable {
 
         if(canClaimOffer(poolId)) {
 
-            lp.stage = lp.PoolStatus.Funded;
+            lp.stage = PoolStatus.Funded;
 
         }
 
@@ -382,7 +377,7 @@ contract LaunchPoolTrackerNew is Ownable {
 
         if(!canClaimOffer(poolId)) {
 
-            lp.stage = lp.PoolStatus.AcceptingStakes;
+            lp.stage = PoolStatus.AcceptingStakes;
 
             _stakeVault.unCommitStakes(poolId);
 
@@ -406,11 +401,11 @@ contract LaunchPoolTrackerNew is Ownable {
 
         _stakeVault.closePool(poolId);
 
-        LaunchPool storage lp = poolsById(poolId);
+        LaunchPool storage lp = poolsById[poolId];
 
 
 
-        lp.stage = lp.PoolStatus.Closed;
+        lp.stage = PoolStatus.Closed;
 
     }
 

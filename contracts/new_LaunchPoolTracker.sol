@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract LaunchPoolTracker is Ownable {
 
-       mapping(address => bool) private _allowedTokenAddresses;
+       mapping(address => bool) public _allowedTokenAddresses;
     // Tokens to stake. We will upgrade this later.
 
     uint256 private _curPoolId; // count of pools in the array and map

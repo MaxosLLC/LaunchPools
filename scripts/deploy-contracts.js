@@ -25,40 +25,17 @@ async function main() {
   // const USDC = "0x75b0622cec14130172eae9cf166b92e5c112faff";
 
   const StakeVault = await hh.ethers.getContractFactory("StakeVault");
-  const stakeVault = await StakeVault.deploy(SPONSOR_ADDRESS);
+  const stakeVault = await StakeVault.deploy();
   await stakeVault.deployed();
 
   const LaunchPoolTracker = await hh.ethers.getContractFactory("LaunchPoolTracker");
 
-  const launchPoolTracker = await LaunchPoolTracker.deploy(
-    [mockERC20.address], 
-    stakeVault.address
-  );
-
-  await stakeVault.setPoolContract(launchPoolTracker.address);
+  const launchPoolTracker = await LaunchPoolTracker.deploy();
 
   const minAmount = BigNumber.from("5000000000000000000000000");
   const maxAmount = BigNumber.from("1000000000000000000000000000000000");
-
-  await launchPoolTracker.addLaunchPool(
-    "testpool1",
-    60 * 60 * 24 * 7, // 7 days
-    86400,
-    1000000,
-    1000000000,
-  );
   
   await mockERC20.approve(stakeVault.address, 100);
-
-  // const launchPool = await LaunchPoolTracker.deploy(
-  //   [mockERC20.address],
-  //   "testPool1",
-  //   60 * 60 * 24 * 365,
-  //   60 * 60 * 24 * 7,
-  //   minAmount.toHexString(),
-  //   maxAmount.toHexString(),
-  //   stakeVault.address
-  // );
 
   await launchPoolTracker.deployed();
 

@@ -5,7 +5,7 @@ import "./new_StakeVault.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
-contract LaunchPoolTrackerTest is Ownable {
+contract LaunchPoolTracker is Ownable {
 
     mapping(address => bool) public _allowedTokenAddresses;
     // Tokens to stake. We will upgrade this later.
@@ -46,7 +46,7 @@ contract LaunchPoolTrackerTest is Ownable {
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
     LaunchPoolTrackerStatus status;
-    StakeVaultTest _stakeVault; //_stakeVault = StakeVault(stakeVaultAddress)
+    StakeVault _stakeVault; //_stakeVault = StakeVault(stakeVaultAddress)
     
     struct LaunchPool {
         string name;
@@ -60,26 +60,6 @@ contract LaunchPoolTrackerTest is Ownable {
         // TODO: do we need these sums? Staked, committed? We can calculate dynamically
         // uint256 totalCommitments; 
 
-    }
-
-    /// @notice creates a new LaunchPoolTracker.
-    /// @dev up to 3 tokens are allowed to be staked.
-    constructor(address[] memory allowedAddresses_, address stakeVaultAddress) {
-        require(
-            allowedAddresses_.length >= 1 && allowedAddresses_.length <= 3,
-            "There must be at least 1 and at most 3 tokens"
-        );
-
-        _stakeVault = StakeVaultTest(stakeVaultAddress);
-        // TOOD on my testing a for loop didn't work here, hence this uglyness.
-        _allowedTokenAddresses[allowedAddresses_[0]] = true;
-        if (allowedAddresses_.length >= 2) {
-            _allowedTokenAddresses[allowedAddresses_[1]] = true;
-        }
-
-        if (allowedAddresses_.length == 3) {
-            _allowedTokenAddresses[allowedAddresses_[2]] = true;
-        }
     }
 
     function addStake (uint256 stakeId) public {}

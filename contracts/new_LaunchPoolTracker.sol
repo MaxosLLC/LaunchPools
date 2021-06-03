@@ -12,7 +12,7 @@ import "hardhat/console.sol";
 
 
 
-contract LaunchPoolTracker is Ownable {
+contract LaunchPoolTrackerNew is Ownable {
 
 
 
@@ -34,7 +34,7 @@ contract LaunchPoolTracker is Ownable {
 
     LaunchPoolTrackerStatus status;
 
-    StakeVault _stakeVault; //_stakeVault = StakeVault(stakeVaultAddress)
+    StakeVaultNew _stakeVault; //_stakeVault = StakeVault(stakeVaultAddress)
 
     
 
@@ -159,7 +159,7 @@ contract LaunchPoolTracker is Ownable {
 
 
 
-        _stakeVault = StakeVault(stakeVaultAddress);
+        _stakeVault = StakeVaultNew(stakeVaultAddress);
 
         status = LaunchPoolTrackerStatus.open;
 
@@ -181,11 +181,11 @@ contract LaunchPoolTracker is Ownable {
 
         uint256 minOfferAmount_,
 
-        uint256 maxOfferAmount_) public {
+        uint256 maxOfferAmount_) public returns (uint256) {
 
 
 
-        uint256 currPoolId = ++_curPoolId;
+        uint256 currPoolId = _curPoolId++;
 
         LaunchPool storage lp = poolsById[currPoolId];
 
@@ -217,13 +217,15 @@ contract LaunchPoolTracker is Ownable {
 
         _stakeVault.addPool(currPoolId, msg.sender, block.timestamp+poolValidDuration_);
 
+        return _curPoolId;
+
     }
 
 
 
     // @notice get all launchPool info list
 
-    function getPoolIds() public returns (uint256[] memory) {
+    function getPoolIds() public view returns (uint256[] memory) {
 
         return poolIds;
 
@@ -293,7 +295,7 @@ contract LaunchPoolTracker is Ownable {
 
     // @notice Get stake ID List in launchPool
 
-    function getStakes (uint256 poolId) public returns(uint256[] memory) {
+    function getStakes (uint256 poolId) public view returns(uint256[] memory) {
 
         LaunchPool storage lp = poolsById[poolId];
 

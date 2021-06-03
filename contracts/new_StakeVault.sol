@@ -3,7 +3,7 @@ pragma solidity 0.8.4;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract StakeVault is Ownable {
+contract StakeVaultNew is Ownable {
 
     struct Stake {
         

@@ -6,7 +6,7 @@ import "./new_LaunchPoolTracker.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
-contract StakeVault is Ownable {
+contract StakeVaultTest is Ownable {
     enum PoolStatus { AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
     struct Stake {        
@@ -18,7 +18,7 @@ contract StakeVault is Ownable {
         bool isCommitted;
     }
 
-    LaunchPoolTracker private _poolTrackerContract;
+    LaunchPoolTrackerTest private _poolTrackerContract;
     uint256 private _curStakeId;
     mapping(uint256 => Stake) public _stakes;
     mapping(address => uint256[]) public _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
@@ -47,10 +47,14 @@ contract StakeVault is Ownable {
         pi.expiration = expiration;
     }
 
+    function setPoolTracker (LaunchPoolTrackerTest launchPoolTracker) public {
+        _poolTrackerContract = launchPoolTracker;
+    }
+
     function closePool (uint256 poolId) public {}
     
     // @notice Add Stake 
-    function addStake (uint256 poolId, address token, uint256 amount) public
+    function addStake (uint256 poolId, address token, uint256 amount) public returns (uint256)
     {
         address staker = msg.sender;
         uint256 _currStakeId = ++_curStakeId;
@@ -72,6 +76,8 @@ contract StakeVault is Ownable {
             IERC20Minimal(token).transferFrom(staker, address(this), amount),
             "Did not get the moneys"
         );
+
+        return _currStakeId;
     }
     
     // @notice Un-Stake

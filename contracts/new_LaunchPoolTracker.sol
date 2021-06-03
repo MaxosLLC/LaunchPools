@@ -335,8 +335,57 @@ contract LaunchPoolTrackerNew is Ownable {
 
     }
 
+    
+
+    // @notice Check the launchPool offer is expired or not
+
+    function _isAfterOfferClose(uint256 poolId) private view returns (bool) {
+
+        LaunchPool storage lp = poolsById[poolId];
+
+        return block.timestamp >= lp.offerExpiry.startTime + lp.offerExpiry.duration;
+
+    }
+
+
+
+    // @notice Check the launchPool offer is able to claim or not
+
+    function canClaimOffer(uint256 poolId) public view returns (bool) {
+
+        LaunchPool storage lp = poolsById[poolId];
+
+        return _isAfterOfferClose(poolId) && lp.totalCommitAmount >= lp.offer.bounds.minimum;
+
+    }
+
+    
+
     // @notice Check the offer success or failure and runs proper action
-    function endOffer (uint256 poolId) public {}
+
+    function endOffer (uint256 poolId) public {
+
+        LaunchPool storage lp = poolsById[poolId];
+
+
+
+        if(canClaimOffer(poolId)) {
+
+            lp.stage = PoolStatus.Funded;
+
+        }
+
+
+
+        if(!canClaimOffer(poolId)) {
+
+            lp.stage = PoolStatus.AcceptingStakes;
+
+            _stakeVault.unCommitStakes(poolId);
+
+        }
+
+    }
 
     
 

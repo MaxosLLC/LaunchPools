@@ -53,6 +53,8 @@ async function main() {
 
   await launchPoolTracker.cancelOffer(poolId);
 
+  await launchPoolTracker.endOffer(poolId);
+
   await launchPoolTracker.deployed();
 
   console.log("MockERC20:", mockERC20.address,

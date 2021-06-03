@@ -6,7 +6,7 @@ import "./new_LaunchPoolTracker.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
-contract StakeVault is Ownable {
+contract StakeVaultTest is Ownable {
     enum PoolStatus { AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
     struct Stake {        
@@ -18,8 +18,8 @@ contract StakeVault is Ownable {
         bool isCommitted;
     }
 
-    LaunchPoolTracker private _poolTrackerContract;
-    uint256 private _curStakeId;
+    LaunchPoolTrackerTest private _poolTrackerContract;
+    uint256 public _curStakeId;
     mapping(uint256 => Stake) public _stakes;
     mapping(address => uint256[]) public _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
@@ -30,6 +30,10 @@ contract StakeVault is Ownable {
     }
 
     mapping(uint256 => PoolInfo) poolsById;
+
+    function setPoolTracker(LaunchPoolTrackerTest launchPoolTracker) public {
+        _poolTrackerContract = launchPoolTracker;
+    }
 
     modifier senderOwnsStake(uint256 stakeId) {
         Stake memory st = _stakes[stakeId];
@@ -91,6 +95,7 @@ contract StakeVault is Ownable {
     function commitStake (uint256 stakeId) public 
         senderOwnsStake(stakeId)
     {
+        require(_stakes[stakeId].staker == msg.sender, "Commit stake should be made by investor of this stake.");
         require(!_stakes[stakeId].isCommitted, "Stake is already committed");
         require(_stakes[stakeId].staker != address(0), "Stake doesn't exist");
 

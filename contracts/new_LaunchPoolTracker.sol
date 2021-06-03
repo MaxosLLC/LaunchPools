@@ -5,7 +5,7 @@ import "./new_StakeVault.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
-contract LaunchPoolTracker is Ownable {
+contract LaunchPoolTrackerTest is Ownable {
 
     mapping(address => bool) public _allowedTokenAddresses;
     // Tokens to stake. We will upgrade this later.
@@ -46,7 +46,7 @@ contract LaunchPoolTracker is Ownable {
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
     LaunchPoolTrackerStatus status;
-    StakeVault _stakeVault; //_stakeVault = StakeVault(stakeVaultAddress)
+    StakeVaultTest _stakeVault; //_stakeVault = StakeVault(stakeVaultAddress)
     
     struct LaunchPool {
         string name;
@@ -60,6 +60,53 @@ contract LaunchPoolTracker is Ownable {
         // TODO: do we need these sums? Staked, committed? We can calculate dynamically
         // uint256 totalCommitments; 
 
+    }
+
+    /// @notice creates a new LaunchPoolTracker.
+    /// @dev up to 3 tokens are allowed to be staked.
+    constructor(address[] memory allowedAddresses_, address stakeVaultAddress) {
+        require(
+            allowedAddresses_.length >= 1 && allowedAddresses_.length <= 3,
+            "There must be at least 1 and at most 3 tokens"
+        );
+
+        _stakeVault = StakeVaultTest(stakeVaultAddress);
+        // TOOD on my testing a for loop didn't work here, hence this uglyness.
+        _allowedTokenAddresses[allowedAddresses_[0]] = true;
+        if (allowedAddresses_.length >= 2) {
+            _allowedTokenAddresses[allowedAddresses_[1]] = true;
+        }
+
+        if (allowedAddresses_.length == 3) {
+            _allowedTokenAddresses[allowedAddresses_[2]] = true;
+        }
+    }
+
+    function getPoolIds() public view returns (uint256[] memory) {
+        return poolIds;
+    }
+
+    function addPool(
+        string memory _poolName,
+        uint256 poolValidDuration_,
+        uint256 offerValidDuration_,
+        uint256 minOfferAmount_,
+        uint256 maxOfferAmount_) public {
+
+        uint256 currPoolId = ++_curPoolId;
+        LaunchPool storage lp = poolsById[currPoolId];
+
+        lp.name = _poolName;
+        lp.stage = PoolStatus.AcceptingStakes;
+        lp.poolExpiry.startTime = block.timestamp;
+        lp.poolExpiry.duration = poolValidDuration_;
+
+        lp.offerExpiry.duration = offerValidDuration_;
+
+        lp.offer.bounds.minimum = minOfferAmount_;
+        lp.offer.bounds.maximum = maxOfferAmount_;
+
+        poolIds.push(currPoolId);
     }
 
     function addStake (uint256 stakeId) public {}

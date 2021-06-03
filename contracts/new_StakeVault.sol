@@ -19,9 +19,11 @@ contract StakeVault is Ownable {
     mapping(uint256 => Stake) _stakes;
     mapping(address => uint256[]) _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
+    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
+
     struct PoolInfo {
         address sponsor;
-        // PoolStatus status;
+        PoolStatus status;
         uint256 expiration;
     }
 
@@ -29,7 +31,17 @@ contract StakeVault is Ownable {
 
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array. 
     // Sets the sponsor and the expiration date and sets the status to “Staking”
-    function addPool (uint256 poolId, address sponsor, uint256 expiration) public {}
+    // A user creates a launchpool and becomes a sponsor
+    function addPool (uint256 poolId, address sponsor, uint256 expiration) public {
+
+        PoolInfo storage pi = poolsById[poolId];
+        pi.sponsor = sponsor;
+        pi.status = PoolStatus.AcceptingStakes;
+        pi.expiration = expiration;
+
+
+        //TODO add event notifying that the pool is open
+    }
 
     // Can be called by the admin or the sponsor. Can be called by any address after the expiration date. Sends back all stakes. 
     // A closed pool only allows unStake actions

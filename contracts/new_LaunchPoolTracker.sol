@@ -399,7 +399,17 @@ contract LaunchPoolTrackerNew is Ownable {
 
     // @notice end LauchPool and set stage into Closed
 
-    function closePool (uint256 poolId) public isValidPoolId(poolId) {}
+    function closePool (uint256 poolId) public isValidPoolId(poolId) {
+
+        _stakeVault.closePool(poolId);
+
+        LaunchPool storage lp = poolsById[poolId];
+
+
+
+        lp.stage = PoolStatus.Closed;
+
+    }
 
 
 

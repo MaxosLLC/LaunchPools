@@ -43,7 +43,7 @@ contract LaunchPoolTrackerTest is Ownable {
     uint256[] public poolIds;
 
     enum LaunchPoolTrackerStatus {open, closed}
-    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
+    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
 
     LaunchPoolTrackerStatus status;
     StakeVaultTest _stakeVault; //_stakeVault = StakeVault(stakeVaultAddress)
@@ -107,6 +107,8 @@ contract LaunchPoolTrackerTest is Ownable {
         lp.offer.bounds.maximum = maxOfferAmount_;
 
         poolIds.push(currPoolId);
+
+        _stakeVault.addPool(currPoolId, msg.sender, poolValidDuration_  + block.timestamp);
     }
 
     function addStake (uint256 stakeId) public {}

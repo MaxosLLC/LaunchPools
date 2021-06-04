@@ -63,7 +63,9 @@ async function main() {
 
   await stakeVault.unStake(stakeId);
 
-  await stakeVault.closePool(poolIds[0]);
+  await stakeVault.setPoolClaimStatus(poolIds[0]);
+
+  await stakeVault.claim(poolIds[0]);
 
   await launchPoolTracker.deployed();
 

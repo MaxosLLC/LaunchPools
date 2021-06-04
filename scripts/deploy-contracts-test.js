@@ -63,6 +63,8 @@ async function main() {
 
   await stakeVault.unStake(stakeId);
 
+  await stakeVault.closePool(poolIds[0]);
+
   await launchPoolTracker.deployed();
 
   console.log("MockERC20:", mockERC20.address,

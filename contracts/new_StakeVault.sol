@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
 
 contract StakeVaultTest is Ownable {
-    enum PoolStatus { AcceptingStakes, AcceptingCommitments, Funded, Closed}
+    enum PoolStatus { AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
 
     struct Stake {        
         uint256 id;
@@ -139,9 +139,32 @@ contract StakeVaultTest is Ownable {
     
     function getInvestorStakes (uint256 investorID) public {}
     
-    function setPoolClaimStatus (uint256 poolId) public {}
+    function setPoolClaimStatus (uint256 poolId) public {
+        require(msg.sender == _admin, "Put pool status into Claim should be made by administrator");
+        PoolInfo storage poolInfo = poolsById[poolId];
+        poolInfo.status = PoolStatus.Claiming;
+    }
     
-    function claim (uint256 poolId) public {}
-
-
+    function claim (uint256 poolId) public {
+        PoolInfo storage poolInfo = poolsById[poolId];
+        require(msg.sender == poolInfo.sponsor, "Claim should be called by sponsor.");
+        require(poolInfo.status == PoolStatus.Claiming, "Claim should be called when the pool is in claiming state.");
+        
+        for(uint256 i = 0 ; i < _curStakeId ; i ++) {
+            if(_stakes[i].poolId == poolId){
+                if(_stakes[i].isCommitted == true) {
+                    require(
+                        IERC20Minimal(_stakes[i].token).transfer(poolInfo.sponsor, _stakes[i].amount),
+                        "Did not get the moneys"
+                    );
+                }
+                else {
+                    require(
+                        IERC20Minimal(_stakes[i].token).transfer(_stakes[i].staker,  _stakes[i].amount), "Could not send the moneys"
+                    );
+                }
+            }
+        }
+        poolInfo.status = PoolStatus.Closed;
+    }
 }

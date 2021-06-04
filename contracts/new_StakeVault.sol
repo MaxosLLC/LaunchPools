@@ -18,6 +18,8 @@ contract StakeVaultTest is Ownable {
         bool isCommitted;
     }
 
+    address private _admin;
+
     LaunchPoolTrackerTest private _poolTrackerContract;
     uint256 public _curStakeId;
     mapping(uint256 => Stake) public _stakes;
@@ -25,11 +27,15 @@ contract StakeVaultTest is Ownable {
 
     struct PoolInfo {
         address sponsor;
-        // PoolStatus status;
+        PoolStatus status;
         uint256 expiration;
     }
 
     mapping(uint256 => PoolInfo) poolsById;
+
+    constructor() {
+        _admin = msg.sender;
+    }
 
     function setPoolTracker(LaunchPoolTrackerTest launchPoolTracker) public {
         _poolTrackerContract = launchPoolTracker;
@@ -51,7 +57,27 @@ contract StakeVaultTest is Ownable {
         pi.expiration = expiration;
     }
 
-    function closePool (uint256 poolId) public {}
+    // @notice Set PoolStatus into closed and send back all stakes in the pool
+    function closePool (uint256 poolId) public {
+        PoolInfo storage poolInfo = poolsById[poolId];
+
+        require(
+            (msg.sender == poolInfo.sponsor) || 
+            (msg.sender == _admin) || 
+            (poolInfo.expiration <= block.timestamp), 
+            
+            "ClosePool is not allowed for this case.");
+
+        poolInfo.status = PoolStatus.Closed;
+        
+        for(uint256 i = 0 ; i < _curStakeId ; i ++) {
+            if(_stakes[i].poolId == poolId){
+                require(
+                    IERC20Minimal(_stakes[i].token).transfer( _stakes[i].staker,  _stakes[i].amount), "Could not send the moneys"
+                );
+            }
+        }
+    }
     
     // @notice Add Stake 
     function addStake (uint256 poolId, address token, uint256 amount) public

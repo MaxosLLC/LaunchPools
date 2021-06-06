@@ -32,7 +32,11 @@ contract LaunchPoolTracker is Ownable {
 
     // Get a list of stakes for the pool. This will be used by users, and also by the stakeVault
     // returns a list of IDs (figure out how to identify stakes in the stakevault. We know the pool)
-    function getStakes (uint256 poolId) public {}
+    function getStakes (uint256 poolId) public returns(uint256[]) {
+        Launchpool storage lp = poolsById[poolId];
+
+        return lp.stakes;
+    }
     
     // Put in committing status. Save a link to the offer
     // url contains the site that the description of the offer made by the sponsor

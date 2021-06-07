@@ -26,6 +26,12 @@ contract LaunchPoolTracker is Ownable {
         // uint256 totalCommitments; 
 
     }
+    
+    // @notice check the poolId is not out of range
+    modifier isValidPoolId(uint256 poolId) {
+        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
+        _;
+    }
 
     // called from the stakeVault. Adds to a list of the stakes in a pool, in stake order
     function addStake (uint256 stakeId) public {}
@@ -57,6 +63,10 @@ contract LaunchPoolTracker is Ownable {
     function getInvestmentValues () public {}
     
     // calls stakeVault closePool, sets status to closed
-    function close (uint256 poolId) public {}
+    function closePool (uint256 poolId) public isValidPoolId(poolId) {
+        _stakeVault.closePool(poolId);
+        LaunchPool storage lp = poolsById[poolId];
+        lp.stage = PoolStatus.Closed;
+    }
 
 }

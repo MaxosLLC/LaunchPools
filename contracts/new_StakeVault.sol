@@ -16,7 +16,7 @@ contract StakeVault is Ownable {
 
     address private _poolTrackerContract;
     mapping(uint256 => Stake) _stakes;
-    mapping(address => uint256[]) _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
+    mapping(address => uint256[]) stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
@@ -32,7 +32,7 @@ contract StakeVault is Ownable {
         Stake memory st = _stakes[stakeId];
         require(
             st.staker == msg.sender,
-            "Account not authorized to unstake"
+            "Investor account not authorized to interact with the the specified Stake"
         );
         _;
     }
@@ -74,7 +74,7 @@ contract StakeVault is Ownable {
         
         // @notice withdraw Stake
         require(
-            IERC20Minimal(_stakes[stakeId].token).transfer( _stakes[stakeId].staker,  _stakes[stakeId].amount), "Could not send the moneys"
+            IERC20Minimal(_stakes[stakeId].token).transfer( _stakes[stakeId].staker,  _stakes[stakeId].amount), "Failed to return tokens to the investor"
         );
 
         _stakes[stakeId].amount = 0;
@@ -88,7 +88,7 @@ contract StakeVault is Ownable {
     // get all of the stakes that are owned by a user address. We can use this list to show an investor their pools or stakes
     // We also need an ID that we can send to the array of stakes in a launchpool
     function getInvestorStakes(uint256 investorID) public returns (uint256[]) {
-        Stake storage stakesArray = _stakesByAccount[InvestorID];
+        Stake storage stakesArray = stakesByInvestor[InvestorID];
 
         return stakesArray;
     }

@@ -46,10 +46,6 @@ contract StakeVault is Ownable {
         //TODO add event notifying that the pool is open
     }
 
-    function setPoolTracker (LaunchPoolTracker launchPoolTracker) public {
-        _poolTrackerContract = launchPoolTracker;
-    }
-
     // Can be called by the admin or the sponsor. Can be called by any address after the expiration date. Sends back all stakes. 
     // A closed pool only allows unStake actions
     function closePool (uint256 poolId) public {}
@@ -59,7 +55,12 @@ contract StakeVault is Ownable {
     // Add this stake to a map that uses the staker address as a key
     // Generate an ID so we can look this up
     // Also call the launchpool to add this stake to its list, with the ID
-    function addStake (uint256 poolId, address token, uint256 amount) public returns (uint256)
+    
+    function addStake(
+        uint256 poolId,
+        address token,
+        uint256 amount
+    ) public returns (uint256)
     {
         address staker = msg.sender;
         uint256 _currStakeId = ++_curStakeId;

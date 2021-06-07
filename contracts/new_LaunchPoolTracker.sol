@@ -14,6 +14,16 @@ contract LaunchPoolTracker is Ownable {
 
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
     
+    struct OfferBounds {
+        uint256 minimum;
+        uint256 maximum;
+    }
+
+    struct Offer {
+        OfferBounds bounds;
+        string url;
+    }
+
     struct LaunchPool {
         string name;
         address sponsor;
@@ -21,6 +31,7 @@ contract LaunchPoolTracker is Ownable {
         uint256 poolExpiry;
         uint256 offerExpiry;
         uint256[] stakes;
+        Offer offer;
 
         // TODO: do we need these sums? Staked, committed? We can calculate dynamically
         // uint256 totalCommitments; 
@@ -56,10 +67,10 @@ contract LaunchPoolTracker is Ownable {
     
     // Put in committing status. Save a link to the offer
     // url contains the site that the description of the offer made by the sponsor
-    function newOffer (uint256 poolId, string memory url) public isValidPoolId(poolId) isPoolOpen(poolId) {
+    function newOffer (uint256 poolId, string memory url, uint256 expiration) public isValidPoolId(poolId) isPoolOpen(poolId) {
         LaunchPool storage lp = poolsById[poolId];
         lp.stage = PoolStatus.AcceptingCommitments;
-        lp.offerExpiry.startTime = block.timestamp;
+        lp.offerExpiry = expiration;
         lp.offer.url = url;
     }
     

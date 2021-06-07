@@ -27,6 +27,12 @@ contract LaunchPoolTracker is Ownable {
 
     }
 
+    // @notice check the poolId is not out of range
+    modifier isValidPoolId(uint256 poolId) {
+        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
+        _;
+    }
+
     // called from the stakeVault. Adds to a list of the stakes in a pool, in stake order
     function addStake (uint256 stakeId) public {}
 
@@ -43,7 +49,10 @@ contract LaunchPoolTracker is Ownable {
     function newOffer (uint256 poolId, string memory url) public {}
     
     // put back in staking status.
-    function cancelOffer (uint256 poolId) public {}
+    function cancelOffer (uint256 poolId) public isValidPoolId(poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.stage = PoolStatus.AcceptingStakes;
+    }
     
     // runs the logic for an offer that fails to reach minimum commitment, or succeeds and goes to Delivering status
     function endOffer (uint256 poolId) public {}

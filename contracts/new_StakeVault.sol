@@ -27,6 +27,15 @@ contract StakeVault is Ownable {
 
     mapping(uint256 => PoolInfo) poolsById;
 
+    modifier senderOwnsStake(uint256 stakeId) {
+        Stake memory st = _stakes[stakeId];
+        require(
+            st.staker == msg.sender,
+            "Account not authorized to unstake"
+        );
+        _;
+    }
+
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array.
     // Sets the sponsor and the expiration date and sets the status to “Staking”
     // A user creates a launchpool and becomes a sponsor
@@ -57,8 +66,16 @@ contract StakeVault is Ownable {
     ) public {}
 
     function unStake(uint256 stakeId) public {}
+    
+    function commitStake (uint256 stakeId) public 
+        senderOwnsStake(stakeId)
+    {
+        require(_stakes[stakeId].staker == msg.sender, "Commit stake should be made by investor of this stake.");
+        require(!_stakes[stakeId].isCommitted, "Stake is already committed");
+        require(_stakes[stakeId].staker != address(0), "Stake doesn't exist");
 
-    function commitStake(uint256 stakeId) public {}
+        _stakes[stakeId].isCommitted = true;
+    }
 
     // the Launchpool calls this if the offer does not reach a minimum value
     function unCommitStakes(uint256 poolId) public {}

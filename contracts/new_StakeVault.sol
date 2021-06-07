@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
+import "./interfaces/IERC20Minimal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract StakeVault is Ownable {
@@ -26,6 +27,15 @@ contract StakeVault is Ownable {
     }
 
     mapping(uint256 => PoolInfo) poolsById;
+    
+    modifier senderOwnsStake(uint256 stakeId) {
+        Stake memory st = _stakes[stakeId];
+        require(
+            st.staker == msg.sender,
+            "Account not authorized to unstake"
+        );
+        _;
+    }
 
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array.
     // Sets the sponsor and the expiration date and sets the status to “Staking”
@@ -56,7 +66,19 @@ contract StakeVault is Ownable {
         uint256 amount
     ) public {}
 
-    function unStake(uint256 stakeId) public {}
+    // @notice Un-Stake
+    function unStake (uint256 stakeId) public 
+        senderOwnsStake(stakeId)
+    {
+        require(!_stakes[stakeId].isCommitted, "cannot unstake commited stake");
+        
+        // @notice withdraw Stake
+        require(
+            IERC20Minimal(_stakes[stakeId].token).transfer( _stakes[stakeId].staker,  _stakes[stakeId].amount), "Could not send the moneys"
+        );
+
+        _stakes[stakeId].amount = 0;
+    }
 
     function commitStake(uint256 stakeId) public {}
 

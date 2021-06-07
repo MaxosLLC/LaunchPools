@@ -27,6 +27,12 @@ contract LaunchPoolTracker is Ownable {
 
     }
 
+    // @notice check the poolId is not out of range
+    modifier isValidPoolId(uint256 poolId) {
+        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
+        _;
+    }
+
     // called from the stakeVault. Adds to a list of the stakes in a pool, in stake order
     function addStake (uint256 poolId, uint256 stakeId) public isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];

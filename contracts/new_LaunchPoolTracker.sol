@@ -37,6 +37,12 @@ contract LaunchPoolTracker is Ownable {
         uint256 totalCommitAmount; 
     }    
 
+    // @notice check the poolId is not out of range
+    modifier isValidPoolId(uint256 poolId) {
+        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
+        _;
+    }
+
     // @notice Check the launchPool offer is expired or not
     function _isAfterOfferClose(uint256 poolId) private view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
@@ -68,7 +74,7 @@ contract LaunchPoolTracker is Ownable {
     function cancelOffer (uint256 poolId) public {}
     
     // runs the logic for an offer that fails to reach minimum commitment, or succeeds and goes to Delivering status
-    function endOffer (uint256 poolId) public {
+    function endOffer (uint256 poolId) public isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
         if(canClaimOffer(poolId)) {
             lp.stage = PoolStatus.Delivering;

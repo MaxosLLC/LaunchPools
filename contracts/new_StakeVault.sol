@@ -19,7 +19,7 @@ contract StakeVault is Ownable {
 
     LaunchPoolTracker private _poolTrackerContract;
     mapping(uint256 => Stake) _stakes;
-    mapping(address => uint256[]) _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
+    mapping(address => uint256[]) stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
@@ -73,14 +73,14 @@ contract StakeVault is Ownable {
         st.poolId = poolId;
         st.isCommitted = false;
 
-        _stakesByAccount[staker].push(_currStakeId);
+        stakesByInvestor[staker].push(_currStakeId);
 
         _poolTrackerContract.addStake(_currStakeId);
 
         // If the transfer fails, we revert and don't record the amount.
         require(
             IERC20Minimal(token).transferFrom(staker, address(this), amount),
-            "Did not get the moneys"
+            "Failed to transfer tokens"
         );
 
         return _currStakeId;

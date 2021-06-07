@@ -27,6 +27,22 @@ contract LaunchPoolTracker is Ownable {
 
     }
 
+    // @notice check the poolId is not out of range
+    modifier isValidPoolId(uint256 poolId) {
+        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
+        _;
+    }
+
+    // @notice check the launchPool is not closed and not expired
+    modifier isPoolOpen(uint256 poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        if (block.timestamp > lp.poolExpiry.startTime + lp.poolExpiry.duration) {
+            lp.stage = PoolStatus.Closed;
+        }
+        require(!_atStage(poolId, PoolStatus.Closed), "LaunchPool is closed");
+        _;
+    }
+
     // called from the stakeVault. Adds to a list of the stakes in a pool, in stake order
     function addStake (uint256 stakeId) public {}
 
@@ -40,7 +56,12 @@ contract LaunchPoolTracker is Ownable {
     
     // Put in committing status. Save a link to the offer
     // url contains the site that the description of the offer made by the sponsor
-    function newOffer (uint256 poolId, string memory url) public {}
+    function newOffer (uint256 poolId, string memory url) public isValidPoolId(poolId) isPoolOpen(poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.stage = PoolStatus.AcceptingCommitments;
+        lp.offerExpiry.startTime = block.timestamp;
+        lp.offer.url = url;
+    }
     
     // put back in staking status.
     function cancelOffer (uint256 poolId) public {}

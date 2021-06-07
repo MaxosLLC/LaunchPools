@@ -17,7 +17,7 @@ contract StakeVault is Ownable {
     address private _poolTrackerContract;
     uint256 public _curStakeId;
     mapping(uint256 => Stake) _stakes;
-    mapping(address => uint256[]) _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
+    mapping(address => uint256[]) stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
     enum PoolStatus { AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
 
@@ -68,7 +68,7 @@ contract StakeVault is Ownable {
     // get all of the stakes that are owned by a user address. We can use this list to show an investor their pools or stakes
     // We also need an ID that we can send to the array of stakes in a launchpool
     function getInvestorStakes(uint256 investorID) public returns (uint256[]) {
-        Stake storage stakesArray = _stakesByAccount[InvestorID];
+        Stake storage stakesArray = stakesByInvestor[InvestorID];
 
         return stakesArray;
     }
@@ -88,12 +88,12 @@ contract StakeVault is Ownable {
                 if(_stakes[i].isCommitted == true) {
                     require(
                         IERC20Minimal(_stakes[i].token).transfer(poolInfo.sponsor, _stakes[i].amount),
-                        "Did not get the moneys"
+                        "Failed to transfer tokens"
                     );
                 }
                 else {
                     require(
-                        IERC20Minimal(_stakes[i].token).transfer(_stakes[i].staker,  _stakes[i].amount), "Could not send the moneys"
+                        IERC20Minimal(_stakes[i].token).transfer(_stakes[i].staker,  _stakes[i].amount), "Failed to return tokens to the investor"
                     );
                 }
             }

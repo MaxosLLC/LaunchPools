@@ -21,7 +21,7 @@ contract StakeVaultTest is Ownable {
     LaunchPoolTrackerTest private _poolTrackerContract;
     uint256 public _curStakeId;
     mapping(uint256 => Stake) public _stakes;
-    mapping(address => uint256[]) public _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
+    mapping(address => uint256[]) public stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
     struct PoolInfo {
         address sponsor;
@@ -39,7 +39,7 @@ contract StakeVaultTest is Ownable {
         Stake memory st = _stakes[stakeId];
         require(
             st.staker == msg.sender,
-            "Account not authorized to unstake"
+            "Investor account not authorized to interact with the the specified Stake"
         );
         _;
     }
@@ -67,14 +67,14 @@ contract StakeVaultTest is Ownable {
         st.poolId = poolId;
         st.isCommitted = false;
 
-        _stakesByAccount[staker].push(_currStakeId);
+        stakesByInvestor[staker].push(_currStakeId);
 
         _poolTrackerContract.addStake(_currStakeId);
 
         // If the transfer fails, we revert and don't record the amount.
         require(
             IERC20Minimal(token).transferFrom(staker, address(this), amount),
-            "Did not get the moneys"
+            "Failed to transfer tokens"
         );
     }
     
@@ -86,7 +86,7 @@ contract StakeVaultTest is Ownable {
         
         // @notice withdraw Stake
         require(
-            IERC20Minimal(_stakes[stakeId].token).transfer( _stakes[stakeId].staker,  _stakes[stakeId].amount), "Could not send the moneys"
+            IERC20Minimal(_stakes[stakeId].token).transfer( _stakes[stakeId].staker,  _stakes[stakeId].amount), "Failed to return tokens to the investor"
         );
 
         _stakes[stakeId].amount = 0;
@@ -95,7 +95,6 @@ contract StakeVaultTest is Ownable {
     function commitStake (uint256 stakeId) public 
         senderOwnsStake(stakeId)
     {
-        require(_stakes[stakeId].staker == msg.sender, "Commit stake should be made by investor of this stake.");
         require(!_stakes[stakeId].isCommitted, "Stake is already committed");
         require(_stakes[stakeId].staker != address(0), "Stake doesn't exist");
 

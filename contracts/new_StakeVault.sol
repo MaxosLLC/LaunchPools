@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
+import "./interfaces/IERC20Minimal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract StakeVault is Ownable {
@@ -12,8 +13,11 @@ contract StakeVault is Ownable {
         uint256 poolId;
         bool isCommitted;
     }
+    
+    address private _admin;
 
     address private _poolTrackerContract;
+    uint256 public _curStakeId;
     mapping(uint256 => Stake) _stakes;
     mapping(address => uint256[]) _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
@@ -43,7 +47,26 @@ contract StakeVault is Ownable {
 
     // Can be called by the admin or the sponsor. Can be called by any address after the expiration date. Sends back all stakes.
     // A closed pool only allows unStake actions
-    function closePool(uint256 poolId) public {}
+    function closePool (uint256 poolId) public {
+        PoolInfo storage poolInfo = poolsById[poolId];
+
+        require(
+            (msg.sender == poolInfo.sponsor) || 
+            (msg.sender == _admin) || 
+            (poolInfo.expiration <= block.timestamp), 
+            
+            "ClosePool is not allowed for this case.");
+
+        poolInfo.status = PoolStatus.Closed;
+        
+        for(uint256 i = 0 ; i < _curStakeId ; i ++) {
+            if(_stakes[i].poolId == poolId){
+                require(
+                    IERC20Minimal(_stakes[i].token).transfer( _stakes[i].staker,  _stakes[i].amount), "Could not send the moneys"
+                );
+            }
+        }
+    }
 
     // Make a stake structure
     // get the staker from the sender

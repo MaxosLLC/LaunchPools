@@ -19,7 +19,7 @@ contract StakeVault is Ownable {
     mapping(uint256 => Stake) _stakes;
     mapping(address => uint256[]) stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
-    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
+    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
 
     struct PoolInfo {
         address sponsor;

@@ -108,7 +108,14 @@ contract StakeVault is Ownable {
     function commitStake(uint256 stakeId) public {}
 
     // the Launchpool calls this if the offer does not reach a minimum value
-    function unCommitStakes(uint256 poolId) public {}
+    function unCommitStakes (uint256 poolId) public 
+    {
+        for(uint256 i = 0 ; i < _curStakeId ; i ++) {
+            if(_stakes[i].poolId == poolId){
+                _stakes[i].isCommitted = false;
+            }
+        }
+    }
 
     // get all of the stakes that are owned by a user address. We can use this list to show an investor their pools or stakes
     // We also need an ID that we can send to the array of stakes in a launchpool

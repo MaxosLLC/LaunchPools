@@ -27,10 +27,11 @@ contract LaunchPoolTracker is Ownable {
     struct LaunchPool {
         string name;
         address sponsor;
-        PoolStatus stage;
+        PoolStatus status;
         uint256 poolExpiry;
         uint256 offerExpiry;
         uint256[] stakes;
+        Offer offer;
 
         Offer offer;
         
@@ -54,9 +55,34 @@ contract LaunchPoolTracker is Ownable {
         LaunchPool storage lp = poolsById[poolId];
         return _isAfterOfferClose(poolId) && lp.totalCommitAmount >= lp.offer.bounds.minimum;
     }
+    
+    // @notice check the poolId is not out of range
+    modifier isValidPoolId(uint256 poolId) {
+        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
+        _;
+    }
+
+    // @notice check the poolId is not out of range
+    modifier isValidPoolId(uint256 poolId) {
+        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
+        _;
+    }
+    
+    // @notice check the launchPool is not closed and not expired
+    modifier isPoolOpen(uint256 poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        if (block.timestamp > lp.poolExpiry.startTime + lp.poolExpiry.duration) {
+            lp.stage = PoolStatus.Closed;
+        }
+        require(!_atStage(poolId, PoolStatus.Closed), "LaunchPool is closed");
+        _;
+    }
 
     // called from the stakeVault. Adds to a list of the stakes in a pool, in stake order
-    function addStake (uint256 stakeId) public {}
+    function addStake (uint256 poolId, uint256 stakeId) public isValidPoolId(poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.stakes.push(stakeId);
+    }
 
     // Get a list of stakes for the pool. This will be used by users, and also by the stakeVault
     // returns a list of IDs (figure out how to identify stakes in the stakevault. We know the pool)
@@ -68,10 +94,18 @@ contract LaunchPoolTracker is Ownable {
     
     // Put in committing status. Save a link to the offer
     // url contains the site that the description of the offer made by the sponsor
-    function newOffer (uint256 poolId, string memory url) public {}
+    function newOffer (uint256 poolId, string memory url, uint256 expiration) public isValidPoolId(poolId) isPoolOpen(poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.stage = PoolStatus.AcceptingCommitments;
+        lp.offerExpiry = expiration;
+        lp.offer.url = url;
+    }
     
     // put back in staking status.
-    function cancelOffer (uint256 poolId) public {}
+    function cancelOffer (uint256 poolId) public isValidPoolId(poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.stage = PoolStatus.AcceptingStakes;
+    }
     
     // runs the logic for an offer that fails to reach minimum commitment, or succeeds and goes to Delivering status
     function endOffer (uint256 poolId) public isValidPoolId(poolId) {
@@ -94,6 +128,10 @@ contract LaunchPoolTracker is Ownable {
     function getInvestmentValues () public {}
     
     // calls stakeVault closePool, sets status to closed
-    function close (uint256 poolId) public {}
+    function closePool (uint256 poolId) public isValidPoolId(poolId) {
+        _stakeVault.closePool(poolId);
+        LaunchPool storage lp = poolsById[poolId];
+        lp.stage = PoolStatus.Closed;
+    }
 
 }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
+
+import "./new_StakeVault.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract LaunchPoolTracker is Ownable {
@@ -38,6 +40,8 @@ contract LaunchPoolTracker is Ownable {
         uint256 totalCommitAmount; 
     }    
 
+    StakeVault _stakeVault;
+
     // @notice check the poolId is not out of range
     modifier isValidPoolId(uint256 poolId) {
         require(poolId < _curPoolId, "LaunchPool Id is out of range.");
@@ -46,7 +50,7 @@ contract LaunchPoolTracker is Ownable {
 
     function _atStatus(uint256 poolId, PoolStatus status) private view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
-        return lp.stage == status;
+        return lp.status == status;
     }
 
     // @notice Check the launchPool offer is expired or not
@@ -87,8 +91,8 @@ contract LaunchPoolTracker is Ownable {
 
     // Get a list of stakes for the pool. This will be used by users, and also by the stakeVault
     // returns a list of IDs (figure out how to identify stakes in the stakevault. We know the pool)
-    function getStakes (uint256 poolId) public returns(uint256[]) {
-        Launchpool storage lp = poolsById[poolId];
+    function getStakes (uint256 poolId) public {
+        LaunchPool storage lp = poolsById[poolId];
 
         return lp.stakes;
     }

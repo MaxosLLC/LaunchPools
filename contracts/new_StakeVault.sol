@@ -144,5 +144,26 @@ contract StakeVault is Ownable {
 
     // must be called by the sponsor address
     // The sponsor claims committed stakes in a pool. This checks to see if the admin has put the pool in “claiming” state. It sends or allows all stakes to the sponsor address. It closes the pool (sending back all uncommitted stakes)
-    function claim(uint256 poolId) public {}
+    function claim (uint256 poolId) public {
+        PoolInfo storage poolInfo = poolsById[poolId];
+        require(msg.sender == poolInfo.sponsor, "Claim should be called by sponsor.");
+        require(poolInfo.status == PoolStatus.Claiming, "Claim should be called when the pool is in claiming state.");
+        
+        for(uint256 i = 0 ; i < _curStakeId ; i ++) {
+            if(_stakes[i].poolId == poolId){
+                if(_stakes[i].isCommitted == true) {
+                    require(
+                        IERC20Minimal(_stakes[i].token).transfer(poolInfo.sponsor, _stakes[i].amount),
+                        "Failed to transfer tokens"
+                    );
+                }
+                else {
+                    require(
+                        IERC20Minimal(_stakes[i].token).transfer(_stakes[i].staker,  _stakes[i].amount), "Failed to return tokens to the investor"
+                    );
+                }
+            }
+        }
+        poolInfo.status = PoolStatus.Closed;
+    }
 }

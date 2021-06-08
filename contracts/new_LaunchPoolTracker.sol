@@ -27,7 +27,7 @@ contract LaunchPoolTracker is Ownable {
     struct LaunchPool {
         string name;
         address sponsor;
-        PoolStatus stage;
+        PoolStatus status;
         uint256 poolExpiry;
         uint256 offerExpiry;
         uint256[] stakes;

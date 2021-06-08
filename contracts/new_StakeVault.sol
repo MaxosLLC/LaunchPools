@@ -29,19 +29,10 @@ contract StakeVault is Ownable {
 
     mapping(uint256 => PoolInfo) poolsById;
     
-    modifier senderOwnsStake(uint256 stakeId) {
-        Stake memory st = _stakes[stakeId];
-        require(
-            st.staker == msg.sender,
-            "Investor account not authorized to interact with the the specified Stake"
-        );
-        _;
-    }
-
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array.
     // Sets the sponsor and the expiration date and sets the status to “Staking”
-    // A user creates a launchpool and becomes a sponsor
-    function addPool (uint256 poolId, address sponsor, uint256 expiration) public {
+    // The sponsor becomes the owner
+    function addPool (uint256 poolId, address sponsor, uint256 expiration) public onlyOwner {
 
         PoolInfo storage pi = poolsById[poolId];
         pi.sponsor = sponsor;
@@ -54,7 +45,7 @@ contract StakeVault is Ownable {
 
     // Can be called by the admin or the sponsor. Can be called by any address after the expiration date. Sends back all stakes.
     // A closed pool only allows unStake actions
-    function closePool(uint256 poolId) public {}
+    function closePool(uint256 poolId) public onlyOwner {}
 
     // Make a stake structure
     // get the staker from the sender
@@ -65,7 +56,7 @@ contract StakeVault is Ownable {
         uint256 poolId,
         address token,
         uint256 amount
-    ) public returns (uint256)
+    ) public onlyOwner returns (uint256)
     {
         address staker = msg.sender;
         uint256 _currStakeId = ++_curStakeId;
@@ -92,8 +83,7 @@ contract StakeVault is Ownable {
     }
 
     // @notice Un-Stake
-    function unStake (uint256 stakeId) public 
-        senderOwnsStake(stakeId)
+    function unStake (uint256 stakeId) public onlyOwner
     {
         require(!_stakes[stakeId].isCommitted, "cannot unstake commited stake");
         
@@ -126,9 +116,9 @@ contract StakeVault is Ownable {
     }
 
     // Put the pool into “Claim” status. The administrator can do this after checking delivery
-    function setPoolClaimStatus(uint256 poolId) public {}
+    function setPoolClaimStatus(uint256 poolId) public onlyOwner {}
 
     // must be called by the sponsor address
     // The sponsor claims committed stakes in a pool. This checks to see if the admin has put the pool in “claiming” state. It sends or allows all stakes to the sponsor address. It closes the pool (sending back all uncommitted stakes)
-    function claim(uint256 poolId) public {}
+    function claim(uint256 poolId) public onlyOwner {}
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
+import "./interfaces/IERC20Minimal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract StakeVault is Ownable {
@@ -14,6 +15,7 @@ contract StakeVault is Ownable {
     }
 
     address private _poolTrackerContract;
+    uint256 private _curStakeId;
     mapping(uint256 => Stake) _stakes;
     mapping(address => uint256[]) _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
@@ -54,7 +56,31 @@ contract StakeVault is Ownable {
         uint256 poolId,
         address token,
         uint256 amount
-    ) public {}
+    ) public returns (uint256)
+    {
+        address staker = msg.sender;
+        uint256 _currStakeId = ++_curStakeId;
+
+        Stake storage st = _stakes[_currStakeId];
+        st.id = _currStakeId;
+        st.staker = staker;
+        st.token = token;
+        st.amount = amount;
+        st.poolId = poolId;
+        st.isCommitted = false;
+
+        stakesByInvestor[staker].push(_currStakeId);
+
+        _poolTrackerContract.addStake(_currStakeId);
+
+        // If the transfer fails, we revert and don't record the amount.
+        require(
+            IERC20Minimal(token).transferFrom(staker, address(this), amount),
+            "Failed to transfer tokens"
+        );
+
+        return _currStakeId;
+    }
 
     function unStake(uint256 stakeId) public {}
 

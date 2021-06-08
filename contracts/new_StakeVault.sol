@@ -71,7 +71,6 @@ contract StakeVault is Ownable {
         senderOwnsStake(stakeId)
     {
         require(!_stakes[stakeId].isCommitted, "Stake is already committed");
-        require(_stakes[stakeId].staker != address(0), "Stake doesn't exist");
 
         _stakes[stakeId].isCommitted = true;
     }

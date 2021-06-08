@@ -40,15 +40,6 @@ contract StakeVault is Ownable {
         _;
     }
 
-    modifier senderOwnsStake(uint256 stakeId) {
-        Stake memory st = _stakes[stakeId];
-        require(
-            st.staker == msg.sender,
-            "Investor account not authorized to interact with the the specified Stake"
-        );
-        _;
-    }
-
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array.
     // Sets the sponsor and the expiration date and sets the status to “Staking”
     // A user creates a launchpool and becomes a sponsor

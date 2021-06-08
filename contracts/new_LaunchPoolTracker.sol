@@ -63,12 +63,6 @@ contract LaunchPoolTracker is Ownable {
         require(poolId < _curPoolId, "LaunchPool Id is out of range.");
         _;
     }
-
-    // @notice check the poolId is not out of range
-    modifier isValidPoolId(uint256 poolId) {
-        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
-        _;
-    }
     
     // @notice check the launchPool is not closed and not expired
     modifier isPoolOpen(uint256 poolId) {

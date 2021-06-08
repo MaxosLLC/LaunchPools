@@ -112,8 +112,8 @@ contract StakeVault is Ownable {
 
     // get all of the stakes that are owned by a user address. We can use this list to show an investor their pools or stakes
     // We also need an ID that we can send to the array of stakes in a launchpool
-    function getInvestorStakes(uint256 investorID) public returns (uint256[]) {
-        Stake storage stakesArray = stakesByInvestor[InvestorID];
+    function getInvestorStakes(uint256 investorID) public {
+        Stake storage stakesArray = stakesByInvestor[investorID];
 
         return stakesArray;
     }

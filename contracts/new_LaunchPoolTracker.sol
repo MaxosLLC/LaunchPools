@@ -28,12 +28,17 @@ contract LaunchPoolTracker is Ownable {
         string url;
     }
 
+    struct ExpiryData {
+        uint256 startTime;
+        uint256 duration;
+    }
+
     struct LaunchPool {
         string name;
         address sponsor;
         PoolStatus status;
-        uint256 poolExpiry;
-        uint256 offerExpiry;
+        ExpiryData poolExpiry;
+        ExpiryData offerExpiry;
         uint256[] stakes;
         Offer offer;
         
@@ -56,7 +61,7 @@ contract LaunchPoolTracker is Ownable {
     // @notice Check the launchPool offer is expired or not
     function _isAfterOfferClose(uint256 poolId) private view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
-        return block.timestamp >= lp.offerExpiry;
+        return block.timestamp >= lp.offerExpiry.startTime + lp.offerExpiry.duration;
     }
 
     // @notice Check the launchPool offer is able to claim or not

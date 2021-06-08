@@ -34,8 +34,6 @@ contract LaunchPoolTracker is Ownable {
         uint256 offerExpiry;
         uint256[] stakes;
         Offer offer;
-
-        Offer offer;
         
         uint256 totalCommitAmount; 
     }    
@@ -44,6 +42,11 @@ contract LaunchPoolTracker is Ownable {
     modifier isValidPoolId(uint256 poolId) {
         require(poolId < _curPoolId, "LaunchPool Id is out of range.");
         _;
+    }
+
+    function _atStatus(uint256 poolId, PoolStatus status) private view returns (bool) {
+        LaunchPool storage lp = poolsById[poolId];
+        return lp.stage == status;
     }
 
     // @notice Check the launchPool offer is expired or not
@@ -58,19 +61,13 @@ contract LaunchPoolTracker is Ownable {
         return _isAfterOfferClose(poolId) && lp.totalCommitAmount >= lp.offer.bounds.minimum;
     }
     
-    // @notice check the poolId is not out of range
-    modifier isValidPoolId(uint256 poolId) {
-        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
-        _;
-    }
-    
     // @notice check the launchPool is not closed and not expired
     modifier isPoolOpen(uint256 poolId) {
         LaunchPool storage lp = poolsById[poolId];
         if (block.timestamp > lp.poolExpiry.startTime + lp.poolExpiry.duration) {
-            lp.stage = PoolStatus.Closed;
+            lp.status = PoolStatus.Closed;
         }
-        require(!_atStage(poolId, PoolStatus.Closed), "LaunchPool is closed");
+        require(!_atStatus(poolId, PoolStatus.Closed), "LaunchPool is closed");
         _;
     }
 
@@ -100,7 +97,7 @@ contract LaunchPoolTracker is Ownable {
     // url contains the site that the description of the offer made by the sponsor
     function newOffer (uint256 poolId, string memory url, uint256 expiration) public isValidPoolId(poolId) isPoolOpen(poolId) {
         LaunchPool storage lp = poolsById[poolId];
-        lp.stage = PoolStatus.AcceptingCommitments;
+        lp.status = PoolStatus.AcceptingCommitments;
         lp.offerExpiry = expiration;
         lp.offer.url = url;
     }
@@ -108,17 +105,17 @@ contract LaunchPoolTracker is Ownable {
     // put back in staking status.
     function cancelOffer (uint256 poolId) public isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
-        lp.stage = PoolStatus.AcceptingStakes;
+        lp.status = PoolStatus.AcceptingStakes;
     }
     
     // runs the logic for an offer that fails to reach minimum commitment, or succeeds and goes to Delivering status
     function endOffer (uint256 poolId) public isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
         if(canClaimOffer(poolId)) {
-            lp.stage = PoolStatus.Delivering;
+            lp.status = PoolStatus.Delivering;
         }
         if(!canClaimOffer(poolId)) {
-            lp.stage = PoolStatus.AcceptingStakes;
+            lp.status = PoolStatus.AcceptingStakes;
             _stakeVault.unCommitStakes(poolId);
         }
     }

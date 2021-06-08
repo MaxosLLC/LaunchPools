@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
+import "./new_LaunchPoolTracker.sol";
 import "./interfaces/IERC20Minimal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -16,7 +17,7 @@ contract StakeVault is Ownable {
     
     address private _admin;
 
-    address private _poolTrackerContract;
+    LaunchPoolTracker private _poolTrackerContract;
     uint256 private _curStakeId;
     mapping(uint256 => Stake) _stakes;
     mapping(address => uint256[]) stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array

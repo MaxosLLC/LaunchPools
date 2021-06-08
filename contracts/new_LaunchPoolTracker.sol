@@ -78,7 +78,10 @@ contract LaunchPoolTracker is Ownable {
     }
     
     // put back in staking status.
-    function cancelOffer (uint256 poolId) public {}
+    function cancelOffer (uint256 poolId) public isValidPoolId(poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.stage = PoolStatus.AcceptingStakes;
+    }
     
     // runs the logic for an offer that fails to reach minimum commitment, or succeeds and goes to Delivering status
     function endOffer (uint256 poolId) public {}

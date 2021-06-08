@@ -8,6 +8,8 @@ contract LaunchPoolTracker is Ownable {
     mapping(address => bool) private _allowedTokenAddresses;
     // Tokens to stake. We will upgrade this later.
 
+    bool private _isTrackerClosed; // is tracker open or closed
+
     uint256 private _curPoolId; // count of pools in the array and map
     mapping(uint256 => LaunchPool) public poolsById;
     uint256[] public poolIds;
@@ -78,6 +80,14 @@ contract LaunchPoolTracker is Ownable {
         _;
     }
 
+    modifier isTrackerOpen () {
+        require(
+            _isTrackerClosed == false,
+            "LaunchPoolTracker is closed."
+        );
+        _;
+    }
+
     // called from the stakeVault. Adds to a list of the stakes in a pool, in stake order
     function addStake (uint256 poolId, uint256 stakeId) public isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
@@ -134,4 +144,12 @@ contract LaunchPoolTracker is Ownable {
         lp.stage = PoolStatus.Closed;
     }
 
+    // calls closePool for all LaunchPools, sets _isTrackerClosed to true
+    function closeTracker () public {
+        for(uint256 i = 0 ; i < _curPoolId ; i ++) {
+            closePool(poolIds[i]);
+        }
+
+        _isTrackerClosed = true;
+    }
 }

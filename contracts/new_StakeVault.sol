@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
+import "./interfaces/IERC20Minimal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract StakeVault is Ownable {
@@ -14,10 +15,11 @@ contract StakeVault is Ownable {
     }
 
     address private _poolTrackerContract;
+    uint256 private _curStakeId;
     mapping(uint256 => Stake) _stakes;
-    mapping(address => uint256[]) _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
+    mapping(address => uint256[]) stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
-    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
+    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
 
     struct PoolInfo {
         address sponsor;
@@ -26,6 +28,15 @@ contract StakeVault is Ownable {
     }
 
     mapping(uint256 => PoolInfo) poolsById;
+    
+    modifier senderOwnsStake(uint256 stakeId) {
+        Stake memory st = _stakes[stakeId];
+        require(
+            st.staker == msg.sender,
+            "Investor account not authorized to interact with the the specified Stake"
+        );
+        _;
+    }
 
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array.
     // Sets the sponsor and the expiration date and sets the status to “Staking”
@@ -54,19 +65,62 @@ contract StakeVault is Ownable {
         uint256 poolId,
         address token,
         uint256 amount
-    ) public {}
+    ) public returns (uint256)
+    {
+        address staker = msg.sender;
+        uint256 _currStakeId = ++_curStakeId;
 
-    function unStake(uint256 stakeId) public {}
+        Stake storage st = _stakes[_currStakeId];
+        st.id = _currStakeId;
+        st.staker = staker;
+        st.token = token;
+        st.amount = amount;
+        st.poolId = poolId;
+        st.isCommitted = false;
+
+        stakesByInvestor[staker].push(_currStakeId);
+
+        _poolTrackerContract.addStake(_currStakeId, poolId);
+
+        // If the transfer fails, we revert and don't record the amount.
+        require(
+            IERC20Minimal(token).transferFrom(staker, address(this), amount),
+            "Failed to transfer tokens"
+        );
+
+        return _currStakeId;
+    }
+
+    // @notice Un-Stake
+    function unStake (uint256 stakeId) public 
+        senderOwnsStake(stakeId)
+    {
+        require(!_stakes[stakeId].isCommitted, "cannot unstake commited stake");
+        
+        // @notice withdraw Stake
+        require(
+            IERC20Minimal(_stakes[stakeId].token).transfer( _stakes[stakeId].staker,  _stakes[stakeId].amount), "Failed to return tokens to the investor"
+        );
+
+        _stakes[stakeId].amount = 0;
+    }
 
     function commitStake(uint256 stakeId) public {}
 
     // the Launchpool calls this if the offer does not reach a minimum value
-    function unCommitStakes(uint256 poolId) public {}
+    function unCommitStakes (uint256 poolId) public 
+    {
+        for(uint256 i = 0 ; i < _curStakeId ; i ++) {
+            if(_stakes[i].poolId == poolId){
+                _stakes[i].isCommitted = false;
+            }
+        }
+    }
 
     // get all of the stakes that are owned by a user address. We can use this list to show an investor their pools or stakes
     // We also need an ID that we can send to the array of stakes in a launchpool
-    function getInvestorStakes(uint256 investorID) public returns (uint256[]) {
-        Stake storage stakesArray = _stakesByAccount[InvestorID];
+    function getInvestorStakes(uint256 investorID) public {
+        Stake storage stakesArray = stakesByInvestor[investorID];
 
         return stakesArray;
     }

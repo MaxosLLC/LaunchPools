@@ -14,6 +14,16 @@ contract LaunchPoolTracker is Ownable {
 
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
     
+    struct OfferBounds {
+        uint256 minimum;
+        uint256 maximum;
+    }
+
+    struct Offer {
+        OfferBounds bounds;
+        string url;
+    }
+
     struct LaunchPool {
         string name;
         address sponsor;
@@ -21,6 +31,7 @@ contract LaunchPoolTracker is Ownable {
         uint256 poolExpiry;
         uint256 offerExpiry;
         uint256[] stakes;
+        Offer offer;
 
         // TODO: do we need these sums? Staked, committed? We can calculate dynamically
         // uint256 totalCommitments; 
@@ -30,6 +41,16 @@ contract LaunchPoolTracker is Ownable {
     // @notice check the poolId is not out of range
     modifier isValidPoolId(uint256 poolId) {
         require(poolId < _curPoolId, "LaunchPool Id is out of range.");
+        _;
+    }
+    
+    // @notice check the launchPool is not closed and not expired
+    modifier isPoolOpen(uint256 poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        if (block.timestamp > lp.poolExpiry.startTime + lp.poolExpiry.duration) {
+            lp.stage = PoolStatus.Closed;
+        }
+        require(!_atStage(poolId, PoolStatus.Closed), "LaunchPool is closed");
         _;
     }
 
@@ -49,7 +70,12 @@ contract LaunchPoolTracker is Ownable {
     
     // Put in committing status. Save a link to the offer
     // url contains the site that the description of the offer made by the sponsor
-    function newOffer (uint256 poolId, string memory url) public {}
+    function newOffer (uint256 poolId, string memory url, uint256 expiration) public isValidPoolId(poolId) isPoolOpen(poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.stage = PoolStatus.AcceptingCommitments;
+        lp.offerExpiry = expiration;
+        lp.offer.url = url;
+    }
     
     // put back in staking status.
     function cancelOffer (uint256 poolId) public {}

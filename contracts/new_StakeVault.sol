@@ -17,7 +17,7 @@ contract StakeVault is Ownable {
     address private _poolTrackerContract;
     uint256 private _curStakeId;
     mapping(uint256 => Stake) _stakes;
-    mapping(address => uint256[]) _stakesByAccount; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
+    mapping(address => uint256[]) stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
 
@@ -28,6 +28,15 @@ contract StakeVault is Ownable {
     }
 
     mapping(uint256 => PoolInfo) poolsById;
+    
+    modifier senderOwnsStake(uint256 stakeId) {
+        Stake memory st = _stakes[stakeId];
+        require(
+            st.staker == msg.sender,
+            "Investor account not authorized to interact with the the specified Stake"
+        );
+        _;
+    }
 
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array.
     // Sets the sponsor and the expiration date and sets the status to “Staking”
@@ -82,7 +91,19 @@ contract StakeVault is Ownable {
         return _currStakeId;
     }
 
-    function unStake(uint256 stakeId) public {}
+    // @notice Un-Stake
+    function unStake (uint256 stakeId) public 
+        senderOwnsStake(stakeId)
+    {
+        require(!_stakes[stakeId].isCommitted, "cannot unstake commited stake");
+        
+        // @notice withdraw Stake
+        require(
+            IERC20Minimal(_stakes[stakeId].token).transfer( _stakes[stakeId].staker,  _stakes[stakeId].amount), "Failed to return tokens to the investor"
+        );
+
+        _stakes[stakeId].amount = 0;
+    }
 
     function commitStake(uint256 stakeId) public {}
 
@@ -92,7 +113,7 @@ contract StakeVault is Ownable {
     // get all of the stakes that are owned by a user address. We can use this list to show an investor their pools or stakes
     // We also need an ID that we can send to the array of stakes in a launchpool
     function getInvestorStakes(uint256 investorID) public returns (uint256[]) {
-        Stake storage stakesArray = _stakesByAccount[InvestorID];
+        Stake storage stakesArray = stakesByInvestor[InvestorID];
 
         return stakesArray;
     }

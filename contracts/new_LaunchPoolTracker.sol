@@ -96,7 +96,7 @@ contract LaunchPoolTracker is Ownable {
 
     // Get a list of stakes for the pool. This will be used by users, and also by the stakeVault
     // returns a list of IDs (figure out how to identify stakes in the stakevault. We know the pool)
-    function getStakes (uint256 poolId) public {
+    function getStakes (uint256 poolId) public returns(uint256 [] memory) {
         LaunchPool storage lp = poolsById[poolId];
 
         return lp.stakes;
@@ -104,10 +104,11 @@ contract LaunchPoolTracker is Ownable {
     
     // Put in committing status. Save a link to the offer
     // url contains the site that the description of the offer made by the sponsor
-    function newOffer (uint256 poolId, string memory url, uint256 expiration) public isValidPoolId(poolId) isPoolOpen(poolId) {
+    function newOffer (uint256 poolId, string memory url, uint256 startTime, uint256 duration) public isValidPoolId(poolId) isPoolOpen(poolId) {
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus.AcceptingCommitments;
-        lp.offerExpiry = expiration;
+        lp.offerExpiry.startTime = startTime;
+        lp.offerExpiry.duration = duration;
         lp.offer.url = url;
     }
     
@@ -141,7 +142,7 @@ contract LaunchPoolTracker is Ownable {
     function closePool (uint256 poolId) public isValidPoolId(poolId) {
         _stakeVault.closePool(poolId);
         LaunchPool storage lp = poolsById[poolId];
-        lp.stage = PoolStatus.Closed;
+        lp.status = PoolStatus.Closed;
     }
 
     // calls closePool for all LaunchPools, sets _isTrackerClosed to true

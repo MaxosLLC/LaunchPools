@@ -12,8 +12,8 @@ contract LaunchPoolTracker is Ownable {
     mapping(uint256 => LaunchPool) public poolsById;
     uint256[] public poolIds;
 
-    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Funded, Closed}
-    
+    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
+
     struct OfferBounds {
         uint256 minimum;
         uint256 maximum;
@@ -33,9 +33,27 @@ contract LaunchPoolTracker is Ownable {
         uint256[] stakes;
         Offer offer;
 
-        // TODO: do we need these sums? Staked, committed? We can calculate dynamically
-        // uint256 totalCommitments; 
+        Offer offer;
+        
+        uint256 totalCommitAmount; 
+    }    
 
+    // @notice check the poolId is not out of range
+    modifier isValidPoolId(uint256 poolId) {
+        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
+        _;
+    }
+
+    // @notice Check the launchPool offer is expired or not
+    function _isAfterOfferClose(uint256 poolId) private view returns (bool) {
+        LaunchPool storage lp = poolsById[poolId];
+        return block.timestamp >= lp.offerExpiry;
+    }
+
+    // @notice Check the launchPool offer is able to claim or not
+    function canClaimOffer(uint256 poolId) public view returns (bool) {
+        LaunchPool storage lp = poolsById[poolId];
+        return _isAfterOfferClose(poolId) && lp.totalCommitAmount >= lp.offer.bounds.minimum;
     }
     
     // @notice check the poolId is not out of range
@@ -90,7 +108,16 @@ contract LaunchPoolTracker is Ownable {
     }
     
     // runs the logic for an offer that fails to reach minimum commitment, or succeeds and goes to Delivering status
-    function endOffer (uint256 poolId) public {}
+    function endOffer (uint256 poolId) public isValidPoolId(poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        if(canClaimOffer(poolId)) {
+            lp.stage = PoolStatus.Delivering;
+        }
+        if(!canClaimOffer(poolId)) {
+            lp.stage = PoolStatus.AcceptingStakes;
+            _stakeVault.unCommitStakes(poolId);
+        }
+    }
     
     // OPTIONAL IN THIS VERSION. calculates new dollar values for stakes. 
     // Eventually, we will save these values at the point were we go to “deliver” the investment amount based on the dollar value of a committed stake.

@@ -80,7 +80,7 @@ contract StakeVault is Ownable {
 
         stakesByInvestor[staker].push(_currStakeId);
 
-        _poolTrackerContract.addStake(_currStakeId);
+        _poolTrackerContract.addStake(_currStakeId, poolId);
 
         // If the transfer fails, we revert and don't record the amount.
         require(

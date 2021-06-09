@@ -67,6 +67,32 @@ contract LaunchPoolTracker is Ownable {
     function setStakeVault(StakeVault stakeVault_) public {
         _stakevault = stakeVault_;
         _stakevault.setPoolContract(this);
+
+    function addPool(
+        string memory _poolName,
+        uint256 poolValidDuration_,
+        uint256 offerValidDuration_,
+        uint256 minOfferAmount_,
+        uint256 maxOfferAmount_) public {
+
+        uint256 currPoolId = ++_curPoolId;
+        LaunchPool storage lp = poolsById[currPoolId];
+
+        lp.name = _poolName;
+        lp.status = PoolStatus.AcceptingStakes;
+        lp.poolExpiry.startTime = block.timestamp;
+        lp.poolExpiry.duration = poolValidDuration_;
+
+        lp.offerExpiry.duration = offerValidDuration_;
+
+        lp.offer.bounds.minimum = minOfferAmount_;
+        lp.offer.bounds.maximum = maxOfferAmount_;
+
+        lp.sponsor = msg.sender;
+
+        poolIds.push(currPoolId);
+
+        _stakeVault.addPool(currPoolId, msg.sender, block.timestamp + poolValidDuration_);
     }
 
     // @notice check the poolId is not out of range

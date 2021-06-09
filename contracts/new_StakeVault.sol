@@ -20,7 +20,7 @@ contract StakeVault is Ownable {
     LaunchPoolTracker private _poolTrackerContract;
     uint256 private _curStakeId;
     mapping(uint256 => Stake) _stakes;
-    mapping(address => uint256[]) stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
+    mapping(address => uint256[]) public stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
 
@@ -146,10 +146,8 @@ contract StakeVault is Ownable {
 
     // get all of the stakes that are owned by a user address. We can use this list to show an investor their pools or stakes
     // We also need an ID that we can send to the array of stakes in a launchpool
-    function getInvestorStakes(uint256 investorID) public {
-        Stake storage stakesArray = stakesByInvestor[investorID];
-
-        return stakesArray;
+    function getInvestorStakes(address investorID) public view returns (uint256[] memory){
+        return stakesByInvestor[investorID];
     }
 
     // Put the pool into “Claim” status. The administrator can do this after checking delivery

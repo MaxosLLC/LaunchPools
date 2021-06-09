@@ -31,11 +31,6 @@ contract StakeVault is Ownable {
     }
 
     mapping(uint256 => PoolInfo) poolsById;
-    
-    // @notice create a new Stakevault
-    constructor(LaunchPoolTracker poolTrackerContract_) {
-        _poolTrackerContract = poolTrackerContract_;
-    }
 
     function public setPoolContract(LaunchPoolTracker poolTrackerContract_) {
         _poolTrackerContract = poolTrackerContract_;

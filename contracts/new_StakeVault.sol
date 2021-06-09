@@ -62,9 +62,7 @@ contract StakeVault is Ownable {
         
         for(uint256 i = 0 ; i < _curStakeId ; i ++) {
             if(_stakes[i].poolId == poolId){
-                require(
-                    IERC20Minimal(_stakes[i].token).transfer( _stakes[i].staker,  _stakes[i].amount), "Failed to return tokens to the investor"
-                );
+                _sendBack(i);
             }
         }
     }
@@ -104,14 +102,19 @@ contract StakeVault is Ownable {
         return _currStakeId;
     }
 
- // @notice Un-Stake
-    function unStake (uint256 stakeId) public onlyOwner {
-        require(!_stakes[stakeId].isCommitted, "cannot unstake commited stake");
-        
+    // @notice send back tokens to investor or investors
+    function _sendBack (uint256 stakeId) private {
         // @notice withdraw Stake
         require(
             IERC20Minimal(_stakes[stakeId].token).transfer( _stakes[stakeId].staker,  _stakes[stakeId].amount), "Failed to return tokens to the investor"
         );
+    }
+
+ // @notice Un-Stake
+    function unStake (uint256 stakeId) public onlyOwner {
+        require(!_stakes[stakeId].isCommitted, "cannot unstake commited stake");
+        
+        _sendBack(stakeId);
 
         _stakes[stakeId].amount = 0;
     }

@@ -48,7 +48,8 @@ contract LaunchPoolTracker is Ownable {
     StakeVault _stakeVault;
 
     /// @notice creates a new LaunchPoolTracker.
-    constructor(address[] memory allowedAddresses_, StakeVault stakeVault_) {
+    /// @dev up to 3 tokens are allowed to be staked.
+    constructor(address[] memory allowedAddresses_) {
         require(
             allowedAddresses_.length >= 1,
             "There must be at least 1"
@@ -57,8 +58,6 @@ contract LaunchPoolTracker is Ownable {
         for(uint256 i = 0 ; i < allowedAddresses_.length ; i ++) {
             _allowedTokenAddresses[allowedAddresses_[i]] = true;
         }
-
-        _stakeVault = stakevault_;
     }
 
     // @notice set StakeVault contract

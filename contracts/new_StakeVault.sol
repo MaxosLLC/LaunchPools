@@ -32,6 +32,15 @@ contract StakeVault is Ownable {
 
     mapping(uint256 => PoolInfo) poolsById;
     
+    // @notice create a new Stakevault
+    constructor(LaunchPoolTracker poolTrackerContract_) {
+        _poolTrackerContract = poolTrackerContract_;
+    }
+
+    function public setPoolContract(LaunchPoolTracker poolTrackerContract_) {
+        _poolTrackerContract = poolTrackerContract_;
+    }
+
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array.
     // Sets the sponsor and the expiration date and sets the status to “Staking”
     // The sponsor becomes the owner

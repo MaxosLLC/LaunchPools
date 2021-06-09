@@ -141,7 +141,12 @@ contract StakeVault is Ownable {
     }
 
     // Put the pool into “Claim” status. The administrator can do this after checking delivery
-    function setPoolClaimStatus(uint256 poolId) public onlyOwner {}
+    function setPoolClaimStatus(uint256 poolId) public onlyOwner {
+        PoolInfo storage poolInfo = poolsById[poolId];
+        require(poolInfo.status == PoolStatus.Delivering, "LaunchPool is not delivering status.");
+        
+        poolInfo.status = PoolStatus.Claiming;
+    }
 
     // must be called by the sponsor address
     // The sponsor claims committed stakes in a pool. This checks to see if the admin has put the pool in “claiming” state. It sends or allows all stakes to the sponsor address. It closes the pool (sending back all uncommitted stakes)

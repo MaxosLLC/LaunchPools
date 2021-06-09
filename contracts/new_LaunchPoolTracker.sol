@@ -47,6 +47,24 @@ contract LaunchPoolTracker is Ownable {
 
     StakeVault _stakeVault;
 
+    /// @notice creates a new LaunchPoolTracker.
+    /// @dev up to 3 tokens are allowed to be staked.
+    constructor(address[] memory allowedAddresses_) {
+        require(
+            allowedAddresses_.length >= 1,
+            "There must be at least 1"
+        );
+        
+        for(uint256 i = 0 ; i < allowedAddresses_.length ; i ++) {
+            _allowedTokenAddresses[allowedAddresses_[i]] = true;
+        }
+    }
+
+    // @notice set StakeVault contract
+    function setStakeVault(StakeVault stakeVault_) public {
+        _stakevault = stakeVault_;
+    }
+
     // @notice check the poolId is not out of range
     modifier isValidPoolId(uint256 poolId) {
         require(poolId < _curPoolId, "LaunchPool Id is out of range.");

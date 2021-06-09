@@ -30,7 +30,7 @@ async function main() {
 
   const LaunchPoolTracker = await hh.ethers.getContractFactory("LaunchPoolTracker");
 
-  const launchPoolTracker = await LaunchPoolTracker.deploy();
+  const launchPoolTracker = await LaunchPoolTracker.deploy([ mockERC20.address ], stakeVault.address);
 
   const minAmount = BigNumber.from("5000000000000000000000000");
   const maxAmount = BigNumber.from("1000000000000000000000000000000000");

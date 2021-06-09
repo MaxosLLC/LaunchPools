@@ -32,7 +32,7 @@ contract StakeVault is Ownable {
 
     mapping(uint256 => PoolInfo) poolsById;
 
-    function public setPoolContract(LaunchPoolTracker poolTrackerContract_) {
+    function setPoolContract(LaunchPoolTracker poolTrackerContract_) public {
         _poolTrackerContract = poolTrackerContract_;
     }
 

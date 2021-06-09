@@ -59,14 +59,15 @@ contract LaunchPoolTracker is Ownable {
             _allowedTokenAddresses[allowedAddresses_[i]] = true;
         }
 
-        _stakevault = stakeVault_;
+        _stakeVault = stakeVault_;
         _stakeVault.setPoolContract(this);
     }
 
     // @notice set StakeVault contract
     function setStakeVault(StakeVault stakeVault_) public {
-        _stakevault = stakeVault_;
-        _stakevault.setPoolContract(this);
+        _stakeVault = stakeVault_;
+        _stakeVault.setPoolContract(this);
+    }
 
     function addPool(
         string memory _poolName,
@@ -144,7 +145,7 @@ contract LaunchPoolTracker is Ownable {
 
     // Get a list of stakes for the pool. This will be used by users, and also by the stakeVault
     // returns a list of IDs (figure out how to identify stakes in the stakevault. We know the pool)
-    function getStakes (uint256 poolId) public returns(uint256 [] memory) {
+    function getStakes (uint256 poolId) public view returns(uint256 [] memory) {
         LaunchPool storage lp = poolsById[poolId];
 
         return lp.stakes;

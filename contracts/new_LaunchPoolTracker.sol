@@ -63,12 +63,18 @@ contract LaunchPoolTracker is Ownable {
         _stakeVault.setPoolContract(this);
     }
 
+    // @notice check the token is allowed
+    function tokenAllowed(address token) public returns (bool) {
+        return _allowedTokenAddresses[token];
+    }
+
     // @notice set StakeVault contract
     function setStakeVault(StakeVault stakeVault_) public {
         _stakeVault = stakeVault_;
         _stakeVault.setPoolContract(this);
     }
 
+    // @notice add a pool and call addPool() in StakeVault contract
     function addPool(
         string memory _poolName,
         uint256 poolValidDuration_,
@@ -102,6 +108,7 @@ contract LaunchPoolTracker is Ownable {
         _;
     }
 
+    // @notice return the launchpool status is same as expected
     function _atStatus(uint256 poolId, PoolStatus status) private view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
         return lp.status == status;
@@ -129,6 +136,7 @@ contract LaunchPoolTracker is Ownable {
         _;
     }
 
+    // @notice check launchPoolTracker is open
     modifier isTrackerOpen () {
         require(
             _isTrackerClosed == false,

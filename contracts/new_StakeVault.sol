@@ -32,6 +32,7 @@ contract StakeVault is Ownable {
 
     mapping(uint256 => PoolInfo) poolsById;
 
+    // @notice set LaunchPoolTracker _poolTrackerContract
     function setPoolContract(LaunchPoolTracker poolTrackerContract_) public {
         _poolTrackerContract = poolTrackerContract_;
     }
@@ -82,6 +83,11 @@ contract StakeVault is Ownable {
         uint256 amount
     ) public onlyOwner returns (uint256)
     {
+        require(
+            _poolTrackerContract.tokenAllowed(token) == true,
+            "Token is not allowed to stake"
+        );
+
         address staker = msg.sender;
         uint256 _currStakeId = ++_curStakeId;
 
@@ -114,7 +120,7 @@ contract StakeVault is Ownable {
         );
     }
 
- // @notice Un-Stake
+    // @notice Un-Stake
     function unStake (uint256 stakeId) public onlyOwner {
         require(!_stakes[stakeId].isCommitted, "cannot unstake commited stake");
         
@@ -123,6 +129,7 @@ contract StakeVault is Ownable {
         _stakes[stakeId].amount = 0;
     }
     
+    // @notice commit already staked stake
     function commitStake (uint256 stakeId) public {
         require(!_stakes[stakeId].isCommitted, "Stake is already committed");
         _stakes[stakeId].isCommitted = true;

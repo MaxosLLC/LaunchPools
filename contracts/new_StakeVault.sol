@@ -39,7 +39,7 @@ contract StakeVault is Ownable {
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array.
     // Sets the sponsor and the expiration date and sets the status to “Staking”
     // The sponsor becomes the owner
-    function addPool (uint256 poolId, address sponsor, uint256 expiration) public onlyOwner {
+    function addPool (uint256 poolId, address sponsor, uint256 expiration) public {
 
         PoolInfo storage pi = poolsById[poolId];
         pi.sponsor = sponsor;

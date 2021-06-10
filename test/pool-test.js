@@ -6,7 +6,7 @@ async function _deployStakeVault() {
     return await StakeVault.deploy();
 }
 
-async function _addPool(launchPoolTracker) {
+async function _addPool(launchPoolTracker, stakevault) {
   await launchPoolTracker.addPool(
     "testpool1",
     86400,
@@ -40,14 +40,16 @@ describe("Staking in LaunchPoolTracker", function() {
     const LaunchPoolTracker = await ethers.getContractFactory("LaunchPoolTracker");
     launchPoolTracker = await LaunchPoolTracker.deploy(
       [token1.address, token2.address],
-      stakeVault
+      stakeVault.address
     );
 
-    // await token1.approve(stakeVault.address, 100);
-    // await token2.approve(stakeVault.address, 100);
-    // await token3.approve(stakeVault.address, 100);
+    await token1.approve(stakeVault.address, 100);
+    await token2.approve(stakeVault.address, 100);
+    await token3.approve(stakeVault.address, 100);
+  });
 
-    firstPoolId = await _addPool(launchPoolTracker);
+  it("Add pool is working", async function() {   
+    expect(await _addPool(launchPoolTracker)).to.equal(1);   
   });
 
   // it("Cannot stake token3", async function() {

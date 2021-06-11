@@ -80,7 +80,7 @@ contract StakeVault is Ownable {
         uint256 poolId,
         address token,
         uint256 amount
-    ) public onlyOwner returns (uint256)
+    ) public returns (uint256)
     {
         address staker = msg.sender;
         uint256 _currStakeId = ++_curStakeId;

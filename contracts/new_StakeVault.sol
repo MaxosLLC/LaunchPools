@@ -80,7 +80,7 @@ contract StakeVault is Ownable {
         uint256 poolId,
         address token,
         uint256 amount
-    ) public onlyOwner returns (uint256)
+    ) public returns (uint256)
     {
         address staker = msg.sender;
         uint256 _currStakeId = ++_curStakeId;
@@ -115,7 +115,7 @@ contract StakeVault is Ownable {
     }
 
  // @notice Un-Stake
-    function unStake (uint256 stakeId) public onlyOwner {
+    function unStake (uint256 stakeId) public {
         require(!_stakes[stakeId].isCommitted, "cannot unstake commited stake");
         
         _sendBack(stakeId);

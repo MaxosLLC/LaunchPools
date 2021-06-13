@@ -1,5 +1,5 @@
-// const { expect } = require("chai");
-// const { ethers } = require("hardhat");
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
 async function _mintTokensAndApprove(stakeVault, token, account, amount) {
   await token.mint(account.address, amount);

@@ -104,7 +104,7 @@ contract LaunchPoolTracker is Ownable {
 
     // @notice check the poolId is not out of range
     modifier isValidPoolId(uint256 poolId) {
-        require(poolId < _curPoolId, "LaunchPool Id is out of range.");
+        require(poolId <= _curPoolId, "LaunchPool Id is out of range.");
         _;
     }
 
@@ -145,8 +145,13 @@ contract LaunchPoolTracker is Ownable {
         _;
     }
 
+    // @notice return poolIds
+    function getPoolIds() public view returns (uint256 [] memory) {
+        return poolIds;
+    }
+
     // called from the stakeVault. Adds to a list of the stakes in a pool, in stake order
-    function addStake (uint256 poolId, uint256 stakeId) public onlyOwner isValidPoolId(poolId) {
+    function addStake (uint256 poolId, uint256 stakeId) public isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
         lp.stakes.push(stakeId);
     }
@@ -161,10 +166,10 @@ contract LaunchPoolTracker is Ownable {
     
     // Put in committing status. Save a link to the offer
     // url contains the site that the description of the offer made by the sponsor
-    function newOffer (uint256 poolId, string memory url, uint256 startTime, uint256 duration) public isValidPoolId(poolId) isPoolOpen(poolId) {
+    function newOffer (uint256 poolId, string memory url, uint256 duration) public isValidPoolId(poolId) isPoolOpen(poolId) {
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus.AcceptingCommitments;
-        lp.offerExpiry.startTime = startTime;
+        lp.offerExpiry.startTime = block.timestamp;
         lp.offerExpiry.duration = duration;
         lp.offer.url = url;
     }

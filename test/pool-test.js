@@ -34,12 +34,15 @@ describe("Staking in LaunchPoolTracker", function() {
     token1 = await MockERC20.deploy(initialAmount);
     token2 = await MockERC20.deploy(initialAmount);
     token3 = await MockERC20.deploy(initialAmount);
+    token4 = await MockERC20.deploy(initialAmount);
 
-    stakeVault = await _deployStakeVault();
+    const StakeVault = await ethers.getContractFactory("StakeVault");
+    stakeVault = await StakeVault.deploy();
+    await stakeVault.deployed();
 
     const LaunchPoolTracker = await ethers.getContractFactory("LaunchPoolTracker");
     launchPoolTracker = await LaunchPoolTracker.deploy(
-      [token1.address, token2.address],
+      [token1.address, token2.address, token3.address],
       stakeVault.address
     );
 
@@ -74,6 +77,51 @@ describe("Staking in LaunchPoolTracker", function() {
     const maxOffer = await launchPool.offer.bounds.maximum;
     expect(maxOffer).to.equal(10000);
   })
+  async function _mintTokensAndApprove(token, account, amount) {
+    await token.mint(account.address, amount);
+    await token.connect(account).approve(stakeVault.address, amount);
+  }
+
+  it("Offer new, cancel routine is working.", async function() {   
+    await launchPoolTracker.addPool(
+        "testpool1",
+        86400,
+        3600,
+        10,
+        10000,
+    );
+    const poolId = await launchPoolTracker.poolIds(0);
+    await launchPoolTracker.newOffer(poolId, "https://example.com", 3000);
+    let launchPool = await launchPoolTracker.poolsById(poolId);
+    let status = launchPool.status;
+    expect(status).to.equal(1);
+    const url = launchPool.offer.url;
+    expect(url).to.equal("https://example.com");
+    const duration = launchPool.offerExpiry.duration;
+    expect(duration).to.equal(3000);
+
+    await launchPoolTracker.cancelOffer(poolId);
+    launchPool = await launchPoolTracker.poolsById(poolId);
+    status = launchPool.status;
+    expect(status).to.equal(0);
+  });
+
+  it("Offer end routine is working.", async function() {   
+    await launchPoolTracker.addPool(
+        "testpool1",
+        86400,
+        3600,
+        10,
+        10000,
+    );
+    const poolId = await launchPoolTracker.poolIds(0);
+    await launchPoolTracker.newOffer(poolId, "https://example.com", 3000);
+
+    await launchPoolTracker.endOffer(poolId);
+    const launchPool = await launchPoolTracker.poolsById(poolId);
+    const status = launchPool.status;
+    expect(status).to.equal(0);
+  });
 
   // it("Cannot stake token3", async function() {
   //   await expect(launchPoolTracker.addStake(0, token3.address, 10))

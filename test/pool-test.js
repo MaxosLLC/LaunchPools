@@ -6,7 +6,7 @@ async function _deployStakeVault() {
     return await StakeVault.deploy();
 }
 
-async function _addPool(launchPoolTracker, stakevault) {
+async function _addPool(launchPoolTracker) {
   await launchPoolTracker.addPool(
     "testpool1",
     86400,
@@ -50,7 +50,30 @@ describe("Staking in LaunchPoolTracker", function() {
 
   it("Add pool is working", async function() {   
     expect(await _addPool(launchPoolTracker)).to.equal(1);   
-  });
+  })
+
+  it("View pool is working", async function() {
+    await _addPool(launchPoolTracker);
+    await _addPool(launchPoolTracker);
+
+    const poolIds = await launchPoolTracker.getPoolIds();
+    expect(poolIds.length).to.equal(2);
+
+    const poolId = await launchPoolTracker.poolIds(1);
+    const launchPool = await launchPoolTracker.poolsById(poolId);
+    const name = await launchPool.name;
+    expect(name).to.equal("testpool1");
+    const status = await launchPool.status;
+    expect(status).to.equal(0);
+    const poolValidDuration = await launchPool.poolExpiry.duration;
+    expect(poolValidDuration).to.equal(86400);
+    const offerValidDuration = await launchPool.offerExpiry.duration;
+    expect(offerValidDuration).to.equal(3600);
+    const minOffer = await launchPool.offer.bounds.minimum;
+    expect(minOffer).to.equal(10);
+    const maxOffer = await launchPool.offer.bounds.maximum;
+    expect(maxOffer).to.equal(10000);
+  })
 
   // it("Cannot stake token3", async function() {
   //   await expect(launchPoolTracker.addStake(0, token3.address, 10))

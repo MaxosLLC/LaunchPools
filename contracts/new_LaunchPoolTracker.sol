@@ -145,6 +145,11 @@ contract LaunchPoolTracker is Ownable {
         _;
     }
 
+    // @notice return poolIds
+    function getPoolIds() public view returns (uint256 [] memory) {
+        return poolIds;
+    }
+
     // called from the stakeVault. Adds to a list of the stakes in a pool, in stake order
     function addStake (uint256 poolId, uint256 stakeId) public onlyOwner isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];

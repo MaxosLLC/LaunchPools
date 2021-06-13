@@ -52,7 +52,7 @@ contract StakeVault is Ownable {
 
     // Can be called by the admin or the sponsor. Can be called by any address after the expiration date. Sends back all stakes.
     // A closed pool only allows unStake actions
-    function closePool (uint256 poolId) public onlyOwner {
+    function closePool (uint256 poolId) public {
         PoolInfo storage poolInfo = poolsById[poolId];
 
         require(
@@ -160,7 +160,7 @@ contract StakeVault is Ownable {
 
     // must be called by the sponsor address
     // The sponsor claims committed stakes in a pool. This checks to see if the admin has put the pool in “claiming” state. It sends or allows all stakes to the sponsor address. It closes the pool (sending back all uncommitted stakes)
-    function claim (uint256 poolId) public onlyOwner {
+    function claim (uint256 poolId) public {
         PoolInfo storage poolInfo = poolsById[poolId];
         require(msg.sender == poolInfo.sponsor, "Claim should be called by sponsor.");
         require(poolInfo.status == PoolStatus.Claiming, "Claim should be called when the pool is in claiming state.");

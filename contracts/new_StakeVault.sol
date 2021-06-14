@@ -19,7 +19,7 @@ contract StakeVault is Ownable {
 
     LaunchPoolTracker private _poolTrackerContract;
     uint256 private _curStakeId;
-    mapping(uint256 => Stake) _stakes;
+    mapping(uint256 => Stake) public _stakes;
     mapping(address => uint256[]) public stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}

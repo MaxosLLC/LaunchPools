@@ -115,7 +115,7 @@ contract StakeVault is Ownable {
     }
 
  // @notice Un-Stake
-    function unStake (uint256 stakeId) public onlyOwner {
+    function unStake (uint256 stakeId) public {
         require(!_stakes[stakeId].isCommitted, "cannot unstake commited stake");
         
         _sendBack(stakeId);

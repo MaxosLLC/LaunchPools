@@ -143,6 +143,11 @@ contract LaunchPoolTracker is Ownable {
         lp.stakes.push(stakeId);
     }
 
+    // @notice return poolIds
+    function getPoolIds() public view returns (uint256 [] memory) {
+        return poolIds;
+    }
+
     // Get a list of stakes for the pool. This will be used by users, and also by the stakeVault
     // returns a list of IDs (figure out how to identify stakes in the stakevault. We know the pool)
     function getStakes (uint256 poolId) public view returns(uint256 [] memory) {

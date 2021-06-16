@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.4;
+pragma solidity ^0.8.0;
 
 import "./new_LaunchPoolTracker.sol";
 import "./interfaces/IERC20Minimal.sol";
@@ -7,15 +7,12 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract StakeVault is Ownable {
     struct Stake {
-        uint256 id;
         address staker;
         address token;
-        uint256 amount;
-        uint256 poolId;
+        uint128 amount;
+        uint128 poolId;
         bool isCommitted;
     }
-    
-    address private _admin;
 
     LaunchPoolTracker private _poolTrackerContract;
     uint256 private _curStakeId;
@@ -31,33 +28,35 @@ contract StakeVault is Ownable {
     }
 
     mapping(uint256 => PoolInfo) poolsById;
-    
-    function setPoolContract(LaunchPoolTracker poolTrackerContract_) public {
+    mapping(uint256 => bool) pool_emergency;    //emergency by pool
+
+    event PoolOpen(uint, address, uint);
+
+    function setPoolContract(LaunchPoolTracker poolTrackerContract_) external onlyOwner{
         _poolTrackerContract = poolTrackerContract_;
     }
 
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array.
     // Sets the sponsor and the expiration date and sets the status to “Staking”
     // The sponsor becomes the owner
-    function addPool (uint256 poolId, address sponsor, uint256 expiration) public {
-
-        PoolInfo storage pi = poolsById[poolId];
+    function addPool (uint256 poolId, address sponsor, uint256 expiration) external {
+   
+        PoolInfo storage pi = poolsById[poolId];    //Storage is appropriate
         pi.sponsor = sponsor;
         pi.status = PoolStatus.AcceptingStakes;
         pi.expiration = expiration;
 
-
-        //TODO add event notifying that the pool is open
+        emit PoolOpen(poolId, sponsor, expiration);
     }
 
     // Can be called by the admin or the sponsor. Can be called by any address after the expiration date. Sends back all stakes.
     // A closed pool only allows unStake actions
-    function closePool (uint256 poolId) public {
+    function closePool (uint256 poolId) external{
         PoolInfo storage poolInfo = poolsById[poolId];
 
         require(
             (msg.sender == poolInfo.sponsor) || 
-            (msg.sender == _admin) || 
+            (msg.sender == owner()) ||
             (poolInfo.expiration <= block.timestamp), 
             
             "ClosePool is not allowed for this case.");
@@ -80,17 +79,12 @@ contract StakeVault is Ownable {
         uint256 poolId,
         address token,
         uint256 amount
-    ) public returns (uint256)
+    ) external returns (uint256)
     {
-        require(
-            _poolTrackerContract.tokenAllowed(token) == true,
-            "Token is not allowed to stake"
-        );
-
         address staker = msg.sender;
-        uint256 _currStakeId = ++_curStakeId;
+        uint256 _currStakeId = _curStakeId + 1;
 
-        Stake storage st = _stakes[_currStakeId];
+        Stake storage st = _stakes[_currStakeId];    //Appropriate storage use
         st.id = _currStakeId;
         st.staker = staker;
         st.token = token;
@@ -102,41 +96,49 @@ contract StakeVault is Ownable {
 
         _poolTrackerContract.addStake(_currStakeId, poolId);
 
-        // If the transfer fails, we revert and don't record the amount.
-        require(
-            IERC20Minimal(token).transferFrom(staker, address(this), amount),
-            "Failed to transfer tokens"
-        );
+        IERC20Minimal(token).transferFrom(staker, address(this), amount);
 
         return _currStakeId;
     }
 
-    // @notice send back tokens to investor or investors
-    function _sendBack (uint256 stakeId) private {
-        // @notice withdraw Stake
-        require(
-            IERC20Minimal(_stakes[stakeId].token).transfer( _stakes[stakeId].staker,  _stakes[stakeId].amount), "Failed to return tokens to the investor"
-        );
-    }
-
-    // @notice Un-Stake
-    function unStake (uint256 stakeId) public {
+    /// @notice Un-Stake
+    function unStake (uint256 stakeId) external{
         require(!_stakes[stakeId].isCommitted, "cannot unstake commited stake");
-        
-        _sendBack(stakeId);
-
-        _stakes[stakeId].amount = 0;
+        require(msg.sender == _stakes[stakeId].staker, "Must be the staker to call this");      //Omited in emergency
+        _sendBack(stakeId); 
     }
-    
-    // @notice commit already staked stake
-    function commitStake (uint256 stakeId) public {
+
+    /// @notice emergency unstake must be toggled on by owner. Allows anyone to unstake commited stakes
+    function emergencyUnstake(uint256 stakeId) external{
+        require(pool_emergency[_stakes[stakeId].poolId], "Owner must declare emergency for this pool");
+        _sendBack(stakeId);
+    }
+
+    /// @notice owner can declare a pool in emergency
+    function declareEmergency(uint256 poolId) external onlyOwner{
+        require(pool_emergency[poolId] != true, "already in emergency state");
+        pool_emergency[poolId] = true;
+    }
+
+    /// @notice owner can declare a pool in emergency
+    function removeEmergency(uint256 poolId) external onlyOwner{
+        require(pool_emergency[poolId] != false, "Pool not in emergency state");
+        pool_emergency[poolId] = false;
+    }
+
+    function commitStake (uint256 stakeId) external {
         require(!_stakes[stakeId].isCommitted, "Stake is already committed");
+        require(_stakes[stakeId].staker == msg.sender, "You are not the owner of this stake");
         _stakes[stakeId].isCommitted = true;
     }
 
     // the Launchpool calls this if the offer does not reach a minimum value
-    function unCommitStakes (uint256 poolId) public 
-    {
+    function unCommitStakes (uint256 poolId) external{
+    require(
+        msg.sender == owner() ||
+        msg.sender == address(_poolTrackerContract),            // CONFIRM this function is called by pool tracker
+        "Only owner or pool tracker contract can call this function"        
+    );
         for(uint256 i = 0 ; i < _curStakeId ; i ++) {
             if(_stakes[i].poolId == poolId){
                 _stakes[i].isCommitted = false;
@@ -144,14 +146,8 @@ contract StakeVault is Ownable {
         }
     }
 
-    // get all of the stakes that are owned by a user address. We can use this list to show an investor their pools or stakes
-    // We also need an ID that we can send to the array of stakes in a launchpool
-    function getInvestorStakes(address investorID) public view returns (uint256[] memory){
-        return stakesByInvestor[investorID];
-    }
-
     // Put the pool into “Claim” status. The administrator can do this after checking delivery
-    function setPoolClaimStatus(uint256 poolId) public onlyOwner {
+    function setPoolClaimStatus(uint256 poolId) external onlyOwner {
         PoolInfo storage poolInfo = poolsById[poolId];
         require(poolInfo.status == PoolStatus.Delivering, "LaunchPool is not delivering status.");
         
@@ -160,26 +156,32 @@ contract StakeVault is Ownable {
 
     // must be called by the sponsor address
     // The sponsor claims committed stakes in a pool. This checks to see if the admin has put the pool in “claiming” state. It sends or allows all stakes to the sponsor address. It closes the pool (sending back all uncommitted stakes)
-    function claim (uint256 poolId) public {
-        PoolInfo storage poolInfo = poolsById[poolId];
+    function claim (uint256 poolId) external{
         require(msg.sender == poolInfo.sponsor, "Claim should be called by sponsor.");
         require(poolInfo.status == PoolStatus.Claiming, "Claim should be called when the pool is in claiming state.");
+        PoolInfo storage poolInfo = poolsById[poolId];
         
         for(uint256 i = 0 ; i < _curStakeId ; i ++) {
             if(_stakes[i].poolId == poolId){
                 if(_stakes[i].isCommitted == true) {
-                    require(
-                        IERC20Minimal(_stakes[i].token).transfer(poolInfo.sponsor, _stakes[i].amount),
-                        "Failed to transfer tokens"
-                    );
+                    IERC20Minimal(_stakes[i].token).transfer(poolInfo.sponsor, _stakes[i].amount);
                 }
                 else {
-                    require(
-                        IERC20Minimal(_stakes[i].token).transfer(_stakes[i].staker,  _stakes[i].amount), "Failed to return tokens to the investor"
-                    );
+                    IERC20Minimal(_stakes[i].token).transfer(_stakes[i].staker,  _stakes[i].amount);
                 }
             }
         }
         poolInfo.status = PoolStatus.Closed;
     }
+
+    /// @notice send back tokens to investor or investors
+    function _sendBack (uint256 stakeId) private {
+        //withdraw Stake
+        uint temp = _stakes[stakeId].amount;
+        _stakes[stakeId].amount = 0;
+        IERC20Minimal(_stakes[stakeId].token).transfer( _stakes[stakeId].staker,  temp);
+    }
+
 }
+
+

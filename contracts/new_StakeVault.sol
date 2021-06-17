@@ -182,4 +182,10 @@ contract StakeVault is Ownable {
         }
         poolInfo.status = PoolStatus.Closed;
     }
+
+    // Get stake details
+    function stakeDetails (uint256 stakeId) public view returns (address staker, address token, uint256 amount, uint256 poolId, bool isCommitted) {
+        Stake storage s = _stakes[stakeId];
+        return (s.staker, s.token, s.amount, s.poolId, s.isCommitted);
+    }
 }

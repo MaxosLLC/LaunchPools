@@ -64,7 +64,7 @@ contract LaunchPoolTracker is Ownable {
     }
 
     // @notice check the token is allowed
-    function tokenAllowed(address token) public returns (bool) {
+    function tokenAllowed(address token) public view returns (bool) {
         return _allowedTokenAddresses[token];
     }
 
@@ -164,6 +164,11 @@ contract LaunchPoolTracker is Ownable {
         return lp.stakes;
     }
     
+    // Get stake details
+    function stakeDetails (uint256 stakeId) public view returns (address staker, address token, uint256 amount, uint256 poolId, bool isCommitted) {
+        return _stakeVault.stakeDetails(stakeId);
+    }
+
     // Put in committing status. Save a link to the offer
     // url contains the site that the description of the offer made by the sponsor
     function newOffer (uint256 poolId, string memory url, uint256 duration) public isValidPoolId(poolId) isPoolOpen(poolId) {

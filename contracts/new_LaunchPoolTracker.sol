@@ -59,18 +59,12 @@ contract LaunchPoolTracker is Ownable {
             _allowedTokenAddresses[allowedAddresses_[i]] = true;
         }
 
-        setStakeVault(stakeVault_);
+       _stakeVault = stakeVault_;
     }
 
     // @notice check the token is allowed
     function tokenAllowed(address token) public view returns (bool) {
         return _allowedTokenAddresses[token];
-    }
-
-    // @notice set StakeVault contract
-    function setStakeVault(StakeVault stakeVault_) public onlyOwner {
-        _stakeVault = stakeVault_;
-        _stakeVault.setPoolContract(this);
     }
 
     // @notice add a pool and call addPool() in StakeVault contract

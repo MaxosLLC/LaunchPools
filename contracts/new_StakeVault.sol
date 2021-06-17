@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract StakeVault is Ownable {
     struct Stake {
+        uint128 id;
         address staker;
         address token;
         uint128 amount;
@@ -15,7 +16,7 @@ contract StakeVault is Ownable {
     }
 
     LaunchPoolTracker private _poolTrackerContract;
-    uint256 private _curStakeId;
+    uint128 private _curStakeId;
     mapping(uint256 => Stake) _stakes;
     mapping(address => uint256[]) public stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the _stakes array
 
@@ -76,13 +77,13 @@ contract StakeVault is Ownable {
     // Generate an ID so we can look this up
     // Also call the launchpool to add this stake to its list, with the ID
     function addStake(
-        uint256 poolId,
+        uint128 poolId,
         address token,
-        uint256 amount
+        uint128 amount
     ) external returns (uint256)
     {
         address staker = msg.sender;
-        uint256 _currStakeId = _curStakeId + 1;
+        uint128 _currStakeId = _curStakeId + 1;
 
         Stake storage st = _stakes[_currStakeId];    //Appropriate storage use
         st.id = _currStakeId;
@@ -157,9 +158,9 @@ contract StakeVault is Ownable {
     // must be called by the sponsor address
     // The sponsor claims committed stakes in a pool. This checks to see if the admin has put the pool in “claiming” state. It sends or allows all stakes to the sponsor address. It closes the pool (sending back all uncommitted stakes)
     function claim (uint256 poolId) external{
+        PoolInfo storage poolInfo = poolsById[poolId];
         require(msg.sender == poolInfo.sponsor, "Claim should be called by sponsor.");
         require(poolInfo.status == PoolStatus.Claiming, "Claim should be called when the pool is in claiming state.");
-        PoolInfo storage poolInfo = poolsById[poolId];
         
         for(uint256 i = 0 ; i < _curStakeId ; i ++) {
             if(_stakes[i].poolId == poolId){

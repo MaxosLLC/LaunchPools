@@ -29,6 +29,7 @@ async function main() {
   const stakeVault = await StakeVault.deploy();
   await stakeVault.deployed();
 
+
   const LaunchPoolTracker = await hh.ethers.getContractFactory("LaunchPoolTracker", {from: accounts[0]});
 
   const launchPoolTracker = await LaunchPoolTracker.deploy([ mockERC20.address ], stakeVault.address);
@@ -41,6 +42,7 @@ async function main() {
   await launchPoolTracker.deployed();
 
   await launchPoolTracker.addPool('poolName', 100, 100, minAmount, maxAmount);
+
 
   console.log("MockERC20:", mockERC20.address,
     "\nStakeVault:", stakeVault.address,

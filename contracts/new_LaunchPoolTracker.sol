@@ -18,6 +18,11 @@ contract LaunchPoolTracker is Ownable {
 
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
 
+    event NewOffer(uint, address);
+    event OfferCancelled(uint, address);
+    event OfferEnded(uint, address);
+    event PoolClosed(uint, address);
+
     struct OfferBounds {
         uint256 minimum;
         uint256 maximum;
@@ -165,12 +170,16 @@ contract LaunchPoolTracker is Ownable {
         lp.offerExpiry.startTime = block.timestamp;
         lp.offerExpiry.duration = duration;
         lp.offer.url = url;
+
+        emit NewOffer(poolId, msg.sender);
     }
     
     // put back in staking status.
     function cancelOffer (uint256 poolId) public onlyOwner isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus.AcceptingStakes;
+
+        emit OfferCancelled(poolId, msg.sender);
     }
     
     // runs the logic for an offer that fails to reach minimum commitment, or succeeds and goes to Delivering status
@@ -183,6 +192,8 @@ contract LaunchPoolTracker is Ownable {
             lp.status = PoolStatus.AcceptingStakes;
             _stakeVault.unCommitStakes(poolId);
         }
+
+        emit OfferEnded(poolId, msg.sender);
     }
     
     // OPTIONAL IN THIS VERSION. calculates new dollar values for stakes. 
@@ -198,6 +209,8 @@ contract LaunchPoolTracker is Ownable {
         _stakeVault.closePool(poolId);
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus.Closed;
+
+        emit PoolClosed(poolId, msg.sender);
     }
 
     // calls closePool for all LaunchPools, sets _isTrackerClosed to true

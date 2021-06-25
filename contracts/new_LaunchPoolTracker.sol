@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.4;
+pragma solidity ^0.8.0;
 
 
 import "./new_StakeVault.sol";
@@ -12,16 +12,11 @@ contract LaunchPoolTracker is Ownable {
 
     bool private _isTrackerClosed; // is tracker open or closed
 
-    uint256 private _curPoolId; // count of pools in the array and map
+    uint256 private _curPoolId = 0; // count of pools in the array and map
     mapping(uint256 => LaunchPool) public poolsById;
     uint256[] public poolIds;
 
     enum PoolStatus {AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
-
-    event NewOffer(uint, address);
-    event OfferCancelled(uint, address);
-    event OfferEnded(uint, address);
-    event PoolClosed(uint, address);
 
     struct OfferBounds {
         uint256 minimum;
@@ -52,6 +47,11 @@ contract LaunchPoolTracker is Ownable {
 
     StakeVault _stakeVault;
 
+    event NewOffer(uint, address);
+    event OfferCancelled(uint, address);
+    event OfferEnded(uint, address);
+    event PoolClosed(uint, address);
+
     /// @notice creates a new LaunchPoolTracker.
     /// @dev up to 3 tokens are allowed to be staked.
     constructor(address[] memory allowedAddresses_, StakeVault stakeVault_) {
@@ -80,8 +80,8 @@ contract LaunchPoolTracker is Ownable {
         uint256 minOfferAmount_,
         uint256 maxOfferAmount_) public onlyOwner {
 
-        uint256 currPoolId = ++_curPoolId;
-        LaunchPool storage lp = poolsById[currPoolId];
+        _curPoolId = _curPoolId + 1;
+        LaunchPool storage lp = poolsById[_curPoolId];
 
         lp.name = _poolName;
         lp.status = PoolStatus.AcceptingStakes;
@@ -95,9 +95,9 @@ contract LaunchPoolTracker is Ownable {
 
         lp.sponsor = msg.sender;
 
-        poolIds.push(currPoolId);
+        poolIds.push(_curPoolId);
 
-        _stakeVault.addPool(currPoolId, msg.sender, block.timestamp + poolValidDuration_);
+        _stakeVault.addPool(_curPoolId, msg.sender, block.timestamp + poolValidDuration_);
     }
 
     // @notice check the poolId is not out of range
@@ -149,7 +149,7 @@ contract LaunchPoolTracker is Ownable {
     }
 
     // called from the stakeVault. Adds to a list of the stakes in a pool, in stake order
-    function addStake (uint256 poolId, uint256 stakeId) public isValidPoolId(poolId) {
+    function addStake (uint256 poolId, uint256 stakeId) public isValidPoolId(poolId){
         LaunchPool storage lp = poolsById[poolId];
         lp.stakes.push(stakeId);
     }

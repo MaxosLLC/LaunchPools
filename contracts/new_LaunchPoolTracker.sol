@@ -41,13 +41,13 @@ contract LaunchPoolTracker is Ownable {
         ExpiryData offerExpiry;
         uint256[] stakes;
         Offer offer;
-        
-        uint256 totalCommitAmount; 
+        uint256 totalCommittedAmount;
     }    
 
     StakeVault _stakeVault;
 
     event NewOffer(uint, address);
+    event UpdateOffer(uint, address);
     event OfferCancelled(uint, address);
     event OfferEnded(uint, address);
     event PoolClosed(uint, address);
@@ -65,6 +65,27 @@ contract LaunchPoolTracker is Ownable {
         }
 
        _stakeVault = stakeVault_;
+    }
+
+    /* Modifers */
+
+    // @notice check the launchPool is not closed and not expired
+    modifier isPoolOpen(uint256 poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        if (block.timestamp > lp.poolExpiry.startTime + lp.poolExpiry.duration) {
+            lp.status = PoolStatus.Closed;
+        }
+        require(!_atStatus(poolId, PoolStatus.Closed), "LaunchPool is closed");
+        _;
+    }
+
+    // @notice check launchPoolTracker is open
+    modifier isTrackerOpen () {
+        require(
+            _isTrackerClosed == false,
+            "LaunchPoolTracker is closed."
+        );
+        _;
     }
 
     // @notice check the token is allowed
@@ -121,27 +142,10 @@ contract LaunchPoolTracker is Ownable {
     // @notice Check the launchPool offer is able to claim or not
     function canClaimOffer(uint256 poolId) public view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
-        return _isAfterOfferClose(poolId) && lp.totalCommitAmount >= lp.offer.bounds.minimum;
+        return _isAfterOfferClose(poolId) && getTotalCommittedAmount(poolId) >= lp.offer.bounds.minimum;
     }
     
-    // @notice check the launchPool is not closed and not expired
-    modifier isPoolOpen(uint256 poolId) {
-        LaunchPool storage lp = poolsById[poolId];
-        if (block.timestamp > lp.poolExpiry.startTime + lp.poolExpiry.duration) {
-            lp.status = PoolStatus.Closed;
-        }
-        require(!_atStatus(poolId, PoolStatus.Closed), "LaunchPool is closed");
-        _;
-    }
-
-    // @notice check launchPoolTracker is open
-    modifier isTrackerOpen () {
-        require(
-            _isTrackerClosed == false,
-            "LaunchPoolTracker is closed."
-        );
-        _;
-    }
+    
 
     // @notice return poolIds
     function getPoolIds() public view returns (uint256 [] memory) {
@@ -195,7 +199,25 @@ contract LaunchPoolTracker is Ownable {
 
         emit OfferEnded(poolId, msg.sender);
     }
-    
+
+    function updateOffer (uint256 poolId, string memory url, uint256 duration) public onlyOwner isValidPoolId(poolId) {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.offerExpiry.startTime = block.timestamp;
+        lp.offerExpiry.duration = duration;
+        lp.offer.url = url;
+
+        emit UpdateOffer(poolId, msg.sender);
+    }
+
+    function getTotalCommittedAmount(uint256 poolId) public view returns(uint256) {
+        LaunchPool storage lp = poolsById[poolId];
+        uint256 totalCommittedAmount = 0;
+        for(uint i = 0; i < lp.stakes.length; i++) {
+            totalCommittedAmount += _stakeVault.getCommittedAmount(lp.stakes[i]);
+        }
+        return totalCommittedAmount;
+    }
+
     // OPTIONAL IN THIS VERSION. calculates new dollar values for stakes. 
     // Eventually, we will save these values at the point were we go to “deliver” the investment amount based on the dollar value of a committed stake.
     function setValues () public onlyOwner {}

@@ -151,8 +151,16 @@ contract StakeVault is Ownable {
         require(!stakes[stakeId].isCommitted, "Stake is already committed");
         require(stakes[stakeId].staker == msg.sender, "You are not the owner of this stake");
         stakes[stakeId].isCommitted = true;
-
+        
         emit StakeCommitted(stakeId, stakes[stakeId].isCommitted, msg.sender);
+    }
+
+    function getCommittedAmount(uint256 stakeId) external view returns(uint256) {
+        if(stakes[stakeId].isCommitted) {
+            return stakes[stakeId].amount;
+        } else {
+            return 0;
+        }       
     }
 
     // the Launchpool calls this if the offer does not reach a minimum value
@@ -169,6 +177,13 @@ contract StakeVault is Ownable {
         }
 
         emit StakesUncommitted(poolId, msg.sender);
+    }
+
+    function setDeliveringStatus(uint256 poolId) external onlyOwner {
+        PoolInfo storage poolInfo = poolsById[poolId];
+        poolInfo.status = PoolStatus.Delivering;
+
+        emit ClaimStatus(poolId, msg.sender, poolInfo.status);
     }
 
     // Put the pool into “Claim” status. The administrator can do this after checking delivery

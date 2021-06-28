@@ -56,6 +56,7 @@ describe("Test stake vault", function() {
     await stakeVault.addStake(poolId, usdc.address, 50);
     await stakeVault.addStake(poolId, usdc.address, 75);
     await stakeVault.addStake(poolId, usdc.address, 50);
+    
 
     const stakes = await launchPoolTracker.getStakes(poolId);
     expect(stakes.length).to.equal(3);
@@ -64,8 +65,20 @@ describe("Test stake vault", function() {
     await stakeVault.commitStake(stakes[1]);
     await stakeVault.commitStake(stakes[2]);
 
-    // As Admin: Set the expiration time on the offer to "Now". THIS WILL REQUIRE CHANGES TO THE LAUNCHPOOL CODE
+    const totalCommittedAmount = await launchPoolTracker.getTotalCommittedAmount(poolId);
+    expect(totalCommittedAmount.toNumber()).to.equal(125);
 
+    await stakeVault.setDeliveringStatus(poolId);
+
+    // // As Admin: Set the expiration time on the offer to "Now". THIS WILL REQUIRE CHANGES TO THE LAUNCHPOOL CODE
+    await launchPoolTracker.updateOffer(poolId, launchPool.offer.url, 0);
+    await launchPoolTracker.endOffer(poolId);
+    const canClaimOffer = await launchPoolTracker.canClaimOffer(poolId)
+    expect(canClaimOffer).to.equal(true);
+    await stakeVault.setPoolClaimStatus(poolId);
+
+    //As Admin/Owner Call the function to set the pool into Claiming state
+    await stakeVault.claim(poolId);
 
   });
 });

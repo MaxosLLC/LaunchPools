@@ -43,6 +43,12 @@ async function main() {
 
   await launchPoolTracker.addPool('poolName', 100, 100, minAmount, maxAmount);
 
+  await launchPoolTracker.addPool('poolName3', 103, 103, minAmount, maxAmount);
+
+  await launchPoolTracker.addPool('poolName1', 101, 101, minAmount, maxAmount);
+
+  await launchPoolTracker.addPool('poolName2', 102, 102, minAmount, maxAmount);
+
 
   console.log("MockERC20:", mockERC20.address,
     "\nStakeVault:", stakeVault.address,

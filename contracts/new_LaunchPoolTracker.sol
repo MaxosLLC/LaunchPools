@@ -88,6 +88,12 @@ contract LaunchPoolTracker is Ownable {
         _;
     }
 
+    // @notice check the poolId is not out of range
+    modifier isValidPoolId(uint256 poolId) {
+        require(poolId <= _curPoolId, "LaunchPool Id is out of range.");
+        _;
+    }
+
     // @notice check the token is allowed
     function tokenAllowed(address token) public view returns (bool) {
         return _allowedTokenAddresses[token];
@@ -121,10 +127,11 @@ contract LaunchPoolTracker is Ownable {
         _stakeVault.addPool(_curPoolId, msg.sender, block.timestamp + poolValidDuration_);
     }
 
-    // @notice check the poolId is not out of range
-    modifier isValidPoolId(uint256 poolId) {
-        require(poolId <= _curPoolId, "LaunchPool Id is out of range.");
-        _;
+    function updatePoolStatus(uint256 poolId, uint256 status) public onlyOwner {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.status = PoolStatus(status);
+
+        _stakeVault.updatePoolStatus(poolId, status);
     }
 
     // @notice return the launchpool status is same as expected
@@ -146,7 +153,6 @@ contract LaunchPoolTracker is Ownable {
     }
     
     
-
     // @notice return poolIds
     function getPoolIds() public view returns (uint256 [] memory) {
         return poolIds;
@@ -162,7 +168,6 @@ contract LaunchPoolTracker is Ownable {
     // returns a list of IDs (figure out how to identify stakes in the stakevault. We know the pool)
     function getStakes (uint256 poolId) public view returns(uint256 [] memory) {
         LaunchPool storage lp = poolsById[poolId];
-
         return lp.stakes;
     }
     
@@ -174,7 +179,7 @@ contract LaunchPoolTracker is Ownable {
         lp.offerExpiry.startTime = block.timestamp;
         lp.offerExpiry.duration = duration;
         lp.offer.url = url;
-
+        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
         emit NewOffer(poolId, msg.sender);
     }
     
@@ -182,7 +187,7 @@ contract LaunchPoolTracker is Ownable {
     function cancelOffer (uint256 poolId) public onlyOwner isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus.AcceptingStakes;
-
+        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
         emit OfferCancelled(poolId, msg.sender);
     }
     
@@ -196,6 +201,8 @@ contract LaunchPoolTracker is Ownable {
             lp.status = PoolStatus.AcceptingStakes;
             _stakeVault.unCommitStakes(poolId);
         }
+
+        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
 
         emit OfferEnded(poolId, msg.sender);
     }
@@ -231,7 +238,7 @@ contract LaunchPoolTracker is Ownable {
         _stakeVault.closePool(poolId);
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus.Closed;
-
+        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
         emit PoolClosed(poolId, msg.sender);
     }
 

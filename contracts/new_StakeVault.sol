@@ -59,9 +59,14 @@ contract StakeVault is Ownable {
         emit PoolOpened(poolId, sponsor, expiration);
     }
 
+    function updatePoolStatus (uint256 poolId, uint256 status) external {
+        PoolInfo storage pi = poolsById[poolId];
+        pi.status = PoolStatus(status);
+    }
+
     // Can be called by the admin or the sponsor. Can be called by any address after the expiration date. Sends back all stakes.
     // A closed pool only allows unStake actions
-    function closePool (uint256 poolId) external{
+    function closePool (uint256 poolId) external {
         PoolInfo storage poolInfo = poolsById[poolId];
 
         require(

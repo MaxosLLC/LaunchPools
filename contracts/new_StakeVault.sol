@@ -16,7 +16,7 @@ contract StakeVault is Ownable {
     }
 
     LaunchPoolTracker private _poolTrackerContract;
-    uint128 private _curStakeId;
+    uint128 private _curStakeId = 0;
     mapping(uint256 => Stake) public stakes;
     mapping(address => uint256[]) public stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the stakes array
 
@@ -95,23 +95,23 @@ contract StakeVault is Ownable {
     ) external
     {
         address staker = msg.sender;
-        uint128 _currStakeId = _curStakeId + 1;
+        _curStakeId = _curStakeId + 1;
 
-        Stake storage st = stakes[_currStakeId];
-        st.id = _currStakeId;
+        Stake storage st = stakes[_curStakeId];
+        st.id = _curStakeId;
         st.staker = staker;
         st.token = token;
         st.amount = amount;
         st.poolId = poolId;
         st.isCommitted = false;
 
-        stakesByInvestor[staker].push(_currStakeId);
+        stakesByInvestor[staker].push(_curStakeId);
 
-        _poolTrackerContract.addStake(_currStakeId, poolId);
+        _poolTrackerContract.addStake(poolId, _curStakeId);
 
         IERC20Minimal(token).transferFrom(staker, address(this), amount);
 
-        emit StakeAdded(poolId, _currStakeId, token, amount, msg.sender);
+        emit StakeAdded(poolId, _curStakeId, token, amount, msg.sender);
     }
 
     /// @notice Un-Stake
@@ -151,8 +151,16 @@ contract StakeVault is Ownable {
         require(!stakes[stakeId].isCommitted, "Stake is already committed");
         require(stakes[stakeId].staker == msg.sender, "You are not the owner of this stake");
         stakes[stakeId].isCommitted = true;
-
+        
         emit StakeCommitted(stakeId, stakes[stakeId].isCommitted, msg.sender);
+    }
+
+    function getCommittedAmount(uint256 stakeId) external view returns(uint256) {
+        if(stakes[stakeId].isCommitted) {
+            return stakes[stakeId].amount;
+        } else {
+            return 0;
+        }       
     }
 
     // the Launchpool calls this if the offer does not reach a minimum value
@@ -169,6 +177,13 @@ contract StakeVault is Ownable {
         }
 
         emit StakesUncommitted(poolId, msg.sender);
+    }
+
+    function setDeliveringStatus(uint256 poolId) external onlyOwner {
+        PoolInfo storage poolInfo = poolsById[poolId];
+        poolInfo.status = PoolStatus.Delivering;
+
+        emit ClaimStatus(poolId, msg.sender, poolInfo.status);
     }
 
     // Put the pool into “Claim” status. The administrator can do this after checking delivery

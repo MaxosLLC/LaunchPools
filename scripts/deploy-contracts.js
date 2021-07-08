@@ -36,18 +36,20 @@ async function main() {
 
   const minAmount = BigNumber.from("5000000000000000000000000");
   const maxAmount = BigNumber.from("1000000000000000000000000000000000");
-  
+
   await mockERC20.approve(stakeVault.address, 100);
 
   await launchPoolTracker.deployed();
 
-  await launchPoolTracker.addPool('poolName', 100, 100, minAmount, maxAmount);
+  await launchPoolTracker.addPool('poolName', 1909763066, 1909763066, minAmount, maxAmount);
 
-  await launchPoolTracker.addPool('poolName3', 103, 103, minAmount, maxAmount);
+  await launchPoolTracker.addPool('poolName3', 1909763066, 1909763066, minAmount, maxAmount);
 
-  await launchPoolTracker.addPool('poolName1', 101, 101, minAmount, maxAmount);
+  await launchPoolTracker.addPool('poolName1', 1909763066, 1909763066, minAmount, maxAmount);
 
-  await launchPoolTracker.addPool('poolName2', 102, 102, minAmount, maxAmount);
+  await launchPoolTracker.addPool('poolName2', 1909763066, 1909763066, minAmount, maxAmount);
+
+  await stakeVault.setPoolContract(launchPoolTracker.address)
 
 
   console.log("MockERC20:", mockERC20.address,

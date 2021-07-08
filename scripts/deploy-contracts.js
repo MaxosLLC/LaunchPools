@@ -21,8 +21,9 @@ async function main() {
   const mockERC20 = await MockERC20.deploy(100);
 
   await mockERC20.deployed();
+  await mockERC20.mint('0xad675cB78227a7DA2848762DDf0Dbc8c6124fA9B', 100)
   // const MOCKERC20 = "0xeA096Ba8979893CF64B7b67eF84BcD9C0cDe925c";
-  // const DAI = "0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa";
+  // const DAI = 0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa;
   // const USDC = "0x75b0622cec14130172eae9cf166b92e5c112faff";
 
   const StakeVault = await hh.ethers.getContractFactory("StakeVault", {from: accounts[0]});
@@ -42,6 +43,11 @@ async function main() {
   await launchPoolTracker.deployed();
 
   await launchPoolTracker.addPool('poolName', 100, 100, minAmount, maxAmount);
+  await launchPoolTracker.addPool('POOL A', 100, 100, minAmount, maxAmount);
+  await launchPoolTracker.addPool('POOL B', 100, 100, minAmount, maxAmount);
+  await launchPoolTracker.addPool('POOL C', 100, 100, minAmount, maxAmount);
+
+  await stakeVault.setPoolContract(launchPoolTracker.address)
 
 
   console.log("MockERC20:", mockERC20.address,

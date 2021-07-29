@@ -105,7 +105,7 @@ contract LaunchPoolTracker is Ownable {
         uint256 poolValidDuration_,
         uint256 offerValidDuration_,
         uint256 minOfferAmount_,
-        uint256 maxOfferAmount_) public onlyOwner {
+        uint256 maxOfferAmount_) public {
 
         _curPoolId = _curPoolId + 1;
         LaunchPool storage lp = poolsById[_curPoolId];

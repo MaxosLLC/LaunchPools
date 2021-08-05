@@ -22,8 +22,9 @@ async function main() {
 
   await mockERC20.deployed();
   // const MOCKERC20 = "0xeA096Ba8979893CF64B7b67eF84BcD9C0cDe925c";
-  // const DAI = "0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa";
-  // const USDC = "0x75b0622cec14130172eae9cf166b92e5c112faff";
+  const ETH = "0x32be343b94f860124dc4fee278fdcbd38c102d88"
+  const DAI = "0x4f96fe3b7a6cf9725f59d353f723c1bdb64ca6aa";
+  const USDC = "0x75b0622cec14130172eae9cf166b92e5c112faff";
 
   const StakeVault = await hh.ethers.getContractFactory("StakeVault", {from: accounts[0]});
   const stakeVault = await StakeVault.deploy();
@@ -32,29 +33,31 @@ async function main() {
 
   const LaunchPoolTracker = await hh.ethers.getContractFactory("LaunchPoolTracker", {from: accounts[0]});
 
-  const launchPoolTracker = await LaunchPoolTracker.deploy([ mockERC20.address ], stakeVault.address);
+  const launchPoolTracker = await LaunchPoolTracker.deploy([ ETH, DAI, USDC ], stakeVault.address);
 
-  const minAmount = BigNumber.from("5000000000000000000000000");
-  const maxAmount = BigNumber.from("1000000000000000000000000000000000");
+  // const minAmount = BigNumber.from("5000000000000000000000000");
+  // const maxAmount = BigNumber.from("1000000000000000000000000000000000");
 
-  await mockERC20.approve(stakeVault.address, 100);
+  // await mockERC20.approve(stakeVault.address, 100);
 
   await launchPoolTracker.deployed();
 
-  await launchPoolTracker.addPool('poolName', 1909763066, 1909763066, minAmount, maxAmount);
+  // await launchPoolTracker.addPool('poolName', 1909763066, 1909763066, minAmount, maxAmount);
 
-  await launchPoolTracker.addPool('poolName3', 1909763066, 1909763066, minAmount, maxAmount);
+  // await launchPoolTracker.addPool('poolName3', 1909763066, 1909763066, minAmount, maxAmount);
 
-  await launchPoolTracker.addPool('poolName1', 1909763066, 1909763066, minAmount, maxAmount);
+  // await launchPoolTracker.addPool('poolName1', 1909763066, 1909763066, minAmount, maxAmount);
 
-  await launchPoolTracker.addPool('poolName2', 1909763066, 1909763066, minAmount, maxAmount);
+  // await launchPoolTracker.addPool('poolName2', 1909763066, 1909763066, minAmount, maxAmount);
 
   await stakeVault.setPoolContract(launchPoolTracker.address)
 
 
-  console.log("MockERC20:", mockERC20.address,
-    "\nStakeVault:", stakeVault.address,
+  console.log("StakeVault:", stakeVault.address,
     "\nLaunchPoolTracker:", launchPoolTracker.address);
+  
+    console.log({
+      presale: `npx hardhat verify --network ${network} ${saveNFTPresale.address}`});
 }
 
 // We recommend this pattern to be able to use async/await everywhere

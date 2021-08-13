@@ -35,6 +35,7 @@ contract LaunchPoolTracker is Ownable {
 
     struct LaunchPool {
         string name;
+        string url;
         address sponsor;
         PoolStatus status;
         ExpiryData poolExpiry;
@@ -106,6 +107,7 @@ contract LaunchPoolTracker is Ownable {
     // @notice add a pool and call addPool() in StakeVault contract
     function addPool(
         string memory _poolName,
+        string memory _url,
         uint256 poolValidDuration_,
         uint256 offerValidDuration_,
         uint256 minOfferAmount_,
@@ -115,6 +117,7 @@ contract LaunchPoolTracker is Ownable {
         LaunchPool storage lp = poolsById[_curPoolId];
 
         lp.name = _poolName;
+        lp.url = _url;
         lp.status = PoolStatus.AcceptingStakes;
         lp.poolExpiry.startTime = block.timestamp;
         lp.poolExpiry.duration = poolValidDuration_;

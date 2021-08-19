@@ -6,7 +6,7 @@ import "./interfaces/IERC20Minimal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract StakeVault is Ownable {
-    struct Stake {
+    struct Stake { 
         uint128 id;
         address staker;
         address token;
@@ -20,18 +20,17 @@ contract StakeVault is Ownable {
     mapping(uint256 => Stake) public stakes;
     mapping(address => uint256[]) public stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the stakes array
 
-    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
+    enum PoolStatus {AcceptingStakes, Delivering, Claiming, Closed}
 
     struct PoolInfo {
         address sponsor;
         PoolStatus status;
-        uint256 expiration;
     }
 
     mapping(uint256 => PoolInfo) poolsById;
     mapping(uint256 => bool) pool_emergency;    //emergency by pool
 
-    event PoolOpened(uint, address, uint);
+    event PoolOpened(uint, address);
     event PoolClosed(uint, address);
     event StakeAdded(uint, uint, address, uint, address);
     event Unstake(uint, address);
@@ -49,14 +48,13 @@ contract StakeVault is Ownable {
     // Called  by a launchPool. Adds to the poolsById mapping in the stakeVault. Passes the id from the poolIds array.
     // Sets the sponsor and the expiration date and sets the status to “Staking”
     // The sponsor becomes the owner
-    function addPool (uint256 poolId, address sponsor, uint256 expiration) external {
+    function addPool (uint256 poolId, address sponsor) external {
    
         PoolInfo storage pi = poolsById[poolId];
         pi.sponsor = sponsor;
         pi.status = PoolStatus.AcceptingStakes;
-        pi.expiration = expiration;
 
-        emit PoolOpened(poolId, sponsor, expiration);
+        emit PoolOpened(poolId, sponsor);
     }
 
     function updatePoolStatus (uint256 poolId, uint256 status) external {
@@ -68,13 +66,7 @@ contract StakeVault is Ownable {
     // A closed pool only allows unStake actions
     function closePool (uint256 poolId) external {
         PoolInfo storage poolInfo = poolsById[poolId];
-
-        require(
-            (msg.sender == poolInfo.sponsor) || 
-            (msg.sender == owner()) ||
-            (poolInfo.expiration <= block.timestamp), 
-            
-            "ClosePool is not allowed for this case.");
+        require((msg.sender == poolInfo.sponsor) || msg.sender == owner(), "ClosePool is not allowed for this case.");
 
         poolInfo.status = PoolStatus.Closed;
         
@@ -99,6 +91,7 @@ contract StakeVault is Ownable {
         uint128 amount
     ) external
     {
+        require(_poolTrackerContract.isOfferInPeriod(poolId), "Pool has expired"); 
         address staker = msg.sender;
         _curStakeId = _curStakeId + 1;
 
@@ -121,7 +114,7 @@ contract StakeVault is Ownable {
 
     /// @notice Un-Stake
     function unStake (uint256 stakeId) external {
-        require(!stakes[stakeId].isCommitted, "cannot unstake commited stake");
+        require(_poolTrackerContract.isOfferInPeriod(stakes[stakeId].poolId), "Pool has expired"); 
         require(msg.sender == stakes[stakeId].staker, "Must be the staker to call this");      //Omited in emergency
         _sendBack(stakeId); 
 
@@ -152,36 +145,12 @@ contract StakeVault is Ownable {
         emit Emergency(poolId, pool_emergency[poolId], msg.sender);
     }
 
-    function commitStake (uint256 stakeId) external {
-        require(!stakes[stakeId].isCommitted, "Stake is already committed");
-        require(stakes[stakeId].staker == msg.sender, "You are not the owner of this stake");
-        stakes[stakeId].isCommitted = true;
-        
-        emit StakeCommitted(stakeId, stakes[stakeId].isCommitted, msg.sender);
-    }
-
     function getCommittedAmount(uint256 stakeId) external view returns(uint256) {
         if(stakes[stakeId].isCommitted) {
             return stakes[stakeId].amount;
         } else {
             return 0;
         }       
-    }
-
-    // the Launchpool calls this if the offer does not reach a minimum value
-    function unCommitStakes (uint256 poolId) external{
-    require(
-        msg.sender == owner() ||
-        msg.sender == address(_poolTrackerContract),            // CONFIRM this function is called by pool tracker
-        "Only owner or pool tracker contract can call this function"        
-    );
-        for(uint256 i = 0 ; i < _curStakeId ; i ++) {
-            if(stakes[i].poolId == poolId){
-                stakes[i].isCommitted = false;
-            }
-        }
-
-        emit StakesUncommitted(poolId, msg.sender);
     }
 
     function setDeliveringStatus(uint256 poolId) external onlyOwner {

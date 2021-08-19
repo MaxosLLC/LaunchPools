@@ -16,7 +16,9 @@ contract LaunchPoolTracker is Ownable {
     mapping(uint256 => LaunchPool) public poolsById;
     uint256[] public poolIds;
 
-    enum PoolStatus {AcceptingStakes, AcceptingCommitments, Delivering, Claiming, Closed}
+    enum PoolStatus {AcceptingStakes, Delivering, Claiming, Closed}
+
+    uint256 offerPeriod = 7 days;
 
     struct OfferBounds {
         uint256 minimum;
@@ -24,13 +26,8 @@ contract LaunchPoolTracker is Ownable {
     }
 
     struct Offer {
-        OfferBounds bounds;
-        string url;
-    }
-
-    struct ExpiryData {
-        uint256 startTime;
-        uint256 duration;
+        uint256 finalSalesPrice;
+        uint256 offerStart;        
     }
 
     struct LaunchPool {
@@ -38,8 +35,9 @@ contract LaunchPoolTracker is Ownable {
         string url;
         address sponsor;
         PoolStatus status;
-        ExpiryData poolExpiry;
-        ExpiryData offerExpiry;
+        uint256 startBonus;
+        uint256 endBonus;
+        uint256 openSaleAmount;
         uint256[] stakes;
         Offer offer;
         uint256 totalCommittedAmount;
@@ -71,14 +69,16 @@ contract LaunchPoolTracker is Ownable {
     /* Modifers */
 
     // @notice check the launchPool is not closed and not expired
-    modifier isPoolOpen(uint256 poolId) {
-        LaunchPool storage lp = poolsById[poolId];
-        if (block.timestamp > lp.poolExpiry.startTime + lp.poolExpiry.duration) {
-            lp.status = PoolStatus.Closed;
-        }
-        require(!_atStatus(poolId, PoolStatus.Closed), "LaunchPool is closed");
-        _;
-    }
+    // modifier isPoolOpen(uint256 poolId) {
+    //     LaunchPool storage lp = poolsById[poolId];
+    //     if (block.timestamp > lp.poolExpiry.startTime + lp.poolExpiry.duration) {
+    //         lp.status = PoolStatus.Closed;
+    //     }
+    //     require(!_atStatus(poolId, PoolStatus.Closed), "LaunchPool is closed");
+    //     _;
+    // }
+
+
 
     // @notice check launchPoolTracker is open
     modifier isTrackerOpen () {
@@ -108,10 +108,9 @@ contract LaunchPoolTracker is Ownable {
     function addPool(
         string memory _poolName,
         string memory _url,
-        uint256 poolValidDuration_,
-        uint256 offerValidDuration_,
-        uint256 minOfferAmount_,
-        uint256 maxOfferAmount_) public {
+        uint256 startBonus_,
+        uint256 endBonus_,
+        uint256 openSaleAmount_) public {
 
         _curPoolId = _curPoolId + 1;
         LaunchPool storage lp = poolsById[_curPoolId];
@@ -119,19 +118,15 @@ contract LaunchPoolTracker is Ownable {
         lp.name = _poolName;
         lp.url = _url;
         lp.status = PoolStatus.AcceptingStakes;
-        lp.poolExpiry.startTime = block.timestamp;
-        lp.poolExpiry.duration = poolValidDuration_;
-
-        lp.offerExpiry.duration = offerValidDuration_;
-
-        lp.offer.bounds.minimum = minOfferAmount_;
-        lp.offer.bounds.maximum = maxOfferAmount_;
+        lp.startBonus = startBonus_;
+        lp.endBonus = endBonus_;
+        lp.openSaleAmount = openSaleAmount_;
 
         lp.sponsor = msg.sender;
 
         poolIds.push(_curPoolId);
 
-        _stakeVault.addPool(_curPoolId, msg.sender, block.timestamp + poolValidDuration_);
+        _stakeVault.addPool(_curPoolId, msg.sender);
     }
 
     function updatePoolStatus(uint256 poolId, uint256 status) public onlyOwner {
@@ -150,13 +145,13 @@ contract LaunchPoolTracker is Ownable {
     // @notice Check the launchPool offer is expired or not
     function _isAfterOfferClose(uint256 poolId) private view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
-        return block.timestamp >= lp.offerExpiry.startTime + lp.offerExpiry.duration;
+        return block.timestamp >= lp.offer.offerStart + offerPeriod;
     }
 
-    // @notice Check the launchPool offer is able to claim or not
-    function canClaimOffer(uint256 poolId) public view returns (bool) {
+    //@notice check the offer is past commit days
+    function isOfferInPeriod(uint256 poolId) external view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
-        return _isAfterOfferClose(poolId) && getTotalCommittedAmount(poolId) >= lp.offer.bounds.minimum;
+        return block.timestamp <= lp.offer.offerStart + offerPeriod;
     }
     
     
@@ -180,12 +175,11 @@ contract LaunchPoolTracker is Ownable {
     
     // Put in committing status. Save a link to the offer
     // url contains the site that the description of the offer made by the sponsor
-    function newOffer (uint256 poolId, string memory url, uint256 duration) public isValidPoolId(poolId) isPoolOpen(poolId) {
+    function newOffer (uint256 poolId, uint256 finalSalesPrice_) public isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
-        lp.status = PoolStatus.AcceptingCommitments;
-        lp.offerExpiry.startTime = block.timestamp;
-        lp.offerExpiry.duration = duration;
-        lp.offer.url = url;
+        lp.offer.offerStart = block.timestamp;
+        lp.offer.finalSalesPrice = finalSalesPrice_;
+        
         _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
         emit NewOffer(poolId, msg.sender);
     }
@@ -201,24 +195,16 @@ contract LaunchPoolTracker is Ownable {
     // runs the logic for an offer that fails to reach minimum commitment, or succeeds and goes to Delivering status
     function endOffer (uint256 poolId) public onlyOwner isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
-        if(canClaimOffer(poolId)) {
-            lp.status = PoolStatus.Delivering;
-        }
-        if(!canClaimOffer(poolId)) {
-            lp.status = PoolStatus.AcceptingStakes;
-            _stakeVault.unCommitStakes(poolId);
-        }
-
+        lp.status = PoolStatus.Delivering;
         _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
 
         emit OfferEnded(poolId, msg.sender);
     }
 
-    function updateOffer (uint256 poolId, string memory url, uint256 duration) public onlyOwner isValidPoolId(poolId) {
+    function updateOffer (uint256 poolId, uint256 finalSalesPrice_) public onlyOwner isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
-        lp.offerExpiry.startTime = block.timestamp;
-        lp.offerExpiry.duration = duration;
-        lp.offer.url = url;
+        lp.offer.offerStart = block.timestamp;
+        lp.offer.finalSalesPrice = finalSalesPrice_;
 
         emit UpdateOffer(poolId, msg.sender);
     }
@@ -256,5 +242,9 @@ contract LaunchPoolTracker is Ownable {
         }
 
         _isTrackerClosed = true;
+    }
+
+    function setOfferPeriod(uint256 period) public onlyOwner {
+        offerPeriod = period;
     }
 }

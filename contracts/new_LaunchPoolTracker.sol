@@ -4,15 +4,16 @@ pragma solidity ^0.8.0;
 
 import "./new_StakeVault.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract LaunchPoolTracker is Ownable {
 
-    mapping(address => bool) private _allowedTokenAddresses;
+    mapping(address => bool) internal _allowedTokenAddresses;
     // Tokens to stake. We will upgrade this later.
 
-    bool private _isTrackerClosed; // is tracker open or closed
+    bool internal _isTrackerClosed; // is tracker open or closed
 
-    uint256 private _curPoolId = 0; // count of pools in the array and map
+    uint256 internal _curPoolId = 0; // count of pools in the array and map
     mapping(uint256 => LaunchPool) public poolsById;
     uint256[] public poolIds;
 
@@ -53,17 +54,16 @@ contract LaunchPoolTracker is Ownable {
 
     /// @notice creates a new LaunchPoolTracker.
     /// @dev up to 3 tokens are allowed to be staked.
-    constructor(address[] memory allowedAddresses_, StakeVault stakeVault_) {
-        require(
-            allowedAddresses_.length >= 1,
-            "There must be at least 1"
-        );
-        
+    constructor() {
+       
+    }
+
+    function initialize(address[] memory allowedAddresses_, StakeVault stakeVault_) public virtual {
+        require(allowedAddresses_.length >= 1, "There must be at least 1");
         for(uint256 i = 0 ; i < allowedAddresses_.length ; i ++) {
             _allowedTokenAddresses[allowedAddresses_[i]] = true;
         }
-
-       _stakeVault = stakeVault_;
+        _stakeVault = stakeVault_;
     }
 
     /* Modifers */
@@ -137,13 +137,13 @@ contract LaunchPoolTracker is Ownable {
     }
 
     // @notice return the launchpool status is same as expected
-    function _atStatus(uint256 poolId, PoolStatus status) private view returns (bool) {
+    function _atStatus(uint256 poolId, PoolStatus status) internal view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
         return lp.status == status;
     }
 
     // @notice Check the launchPool offer is expired or not
-    function _isAfterOfferClose(uint256 poolId) private view returns (bool) {
+    function _isAfterOfferClose(uint256 poolId) internal view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
         return block.timestamp >= lp.offer.offerStart + offerPeriod;
     }

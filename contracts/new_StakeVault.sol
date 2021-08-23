@@ -4,8 +4,9 @@ pragma solidity ^0.8.0;
 import "./new_LaunchPoolTracker.sol";
 import "./interfaces/IERC20Minimal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract StakeVault is Ownable {
+contract StakeVault is Ownable, Initializable {
     struct Stake { 
         uint128 id;
         address staker;

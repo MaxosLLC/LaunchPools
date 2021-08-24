@@ -6,7 +6,7 @@ import "./new_StakeVault.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract LaunchPoolTracker is Ownable {
+contract LaunchPoolTracker is Ownable, Initializable{
 
     mapping(address => bool) internal _allowedTokenAddresses;
     // Tokens to stake. We will upgrade this later.
@@ -58,7 +58,7 @@ contract LaunchPoolTracker is Ownable {
        
     }
 
-    function initialize(address[] memory allowedAddresses_, StakeVault stakeVault_) public virtual {
+    function initialize(address[] memory allowedAddresses_, StakeVault stakeVault_) public virtual initializer{
         require(allowedAddresses_.length >= 1, "There must be at least 1");
         for(uint256 i = 0 ; i < allowedAddresses_.length ; i ++) {
             _allowedTokenAddresses[allowedAddresses_[i]] = true;

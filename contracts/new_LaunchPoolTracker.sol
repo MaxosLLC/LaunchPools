@@ -257,12 +257,14 @@ contract LaunchPoolTracker is Ownable, Initializable{
 
     function setClaimingStatus(uint256 poolId) external onlyOwner {
         LaunchPool storage lp = poolsById[poolId];
+        require(lp.status != PoolStatus.Closed, "Closed status cannot be updated");
         lp.status = PoolStatus.Claiming;
     }
 
     function setDeliveringStatus(uint256 poolId) external {
         LaunchPool storage lp = poolsById[poolId];
         require(lp.status == PoolStatus.OfferPosted && !isOfferInPeriod(poolId), "Offer is the period");
+        require(lp.status != PoolStatus.Closed, "Closed status cannot be updated");
         lp.status = PoolStatus.Delivering;
     }
 }

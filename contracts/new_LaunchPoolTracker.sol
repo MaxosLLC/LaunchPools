@@ -237,6 +237,8 @@ contract LaunchPoolTracker is Ownable, Initializable{
         offerPeriod = period;
     }
 
+    //Checking Pool Status functions
+
     function isDeliveringStatus(uint256 poolId) external view returns(bool) {
         LaunchPool storage lp = poolsById[poolId];
         return (lp.status == PoolStatus.Delivering);
@@ -245,5 +247,22 @@ contract LaunchPoolTracker is Ownable, Initializable{
     function isClaimingStatus(uint256 poolId) external view returns(bool) {
         LaunchPool storage lp = poolsById[poolId];
         return (lp.status == PoolStatus.Claiming);
+    }
+
+    //Switching Pool Status function
+    function setClosedStatus(uint256 poolId) external onlyOwner {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.status = PoolStatus.Closed;
+    }
+
+    function setClaimingStatus(uint256 poolId) external onlyOwner {
+        LaunchPool storage lp = poolsById[poolId];
+        lp.status = PoolStatus.Claiming;
+    }
+
+    function setDeliveringStatus(uint256 poolId) external {
+        LaunchPool storage lp = poolsById[poolId];
+        require(lp.status == PoolStatus.OfferPosted && !isOfferInPeriod(poolId), "Offer is the period");
+        lp.status = PoolStatus.Delivering;
     }
 }

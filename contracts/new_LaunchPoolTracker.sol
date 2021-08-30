@@ -17,14 +17,9 @@ contract LaunchPoolTracker is Ownable, Initializable{
     mapping(uint256 => LaunchPool) public poolsById;
     uint256[] public poolIds;
 
-    enum PoolStatus {AcceptingStakes, Delivering, Claiming, Closed}
+    enum PoolStatus {AcceptingStakes, OfferPosted, Delivering, Claiming, Closed}
 
     uint256 offerPeriod = 7 days;
-
-    struct OfferBounds {
-        uint256 minimum;
-        uint256 maximum;
-    }
 
     struct Offer {
         uint256 finalSalesPrice;
@@ -39,6 +34,7 @@ contract LaunchPoolTracker is Ownable, Initializable{
         uint256 startBonus;
         uint256 endBonus;
         uint256 openSaleAmount;
+        uint256 presaleAmount;
         uint256[] stakes;
         Offer offer;
         uint256 totalCommittedAmount;
@@ -110,7 +106,8 @@ contract LaunchPoolTracker is Ownable, Initializable{
         string memory _url,
         uint256 startBonus_,
         uint256 endBonus_,
-        uint256 openSaleAmount_) public {
+        uint256 openSaleAmount_,
+        uint256 presaleAmount_) public {
 
         _curPoolId = _curPoolId + 1;
         LaunchPool storage lp = poolsById[_curPoolId];
@@ -121,6 +118,7 @@ contract LaunchPoolTracker is Ownable, Initializable{
         lp.startBonus = startBonus_;
         lp.endBonus = endBonus_;
         lp.openSaleAmount = openSaleAmount_;
+        lp.presaleAmount = presaleAmount_;
 
         lp.sponsor = msg.sender;
 
@@ -149,7 +147,7 @@ contract LaunchPoolTracker is Ownable, Initializable{
     }
 
     //@notice check the offer is past commit days
-    function isOfferInPeriod(uint256 poolId) external view returns (bool) {
+    function isOfferInPeriod(uint256 poolId) public view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
         return block.timestamp <= lp.offer.offerStart + offerPeriod;
     }
@@ -179,7 +177,7 @@ contract LaunchPoolTracker is Ownable, Initializable{
         LaunchPool storage lp = poolsById[poolId];
         lp.offer.offerStart = block.timestamp;
         lp.offer.finalSalesPrice = finalSalesPrice_;
-        
+        lp.status = PoolStatus.OfferPosted;
         _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
         emit NewOffer(poolId, msg.sender);
     }
@@ -194,6 +192,7 @@ contract LaunchPoolTracker is Ownable, Initializable{
     
     // runs the logic for an offer that fails to reach minimum commitment, or succeeds and goes to Delivering status
     function endOffer (uint256 poolId) public onlyOwner isValidPoolId(poolId) {
+        require(!isOfferInPeriod(poolId), "Pool is in the offer period"); 
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus.Delivering;
         _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
@@ -246,5 +245,10 @@ contract LaunchPoolTracker is Ownable, Initializable{
 
     function setOfferPeriod(uint256 period) public onlyOwner {
         offerPeriod = period;
+    }
+
+    function isDeliveringStatus(uint256 poolId) external view returns(bool) {
+        LaunchPool storage lp = poolsById[poolId];
+        return (lp.status == PoolStatus.Delivering);
     }
 }

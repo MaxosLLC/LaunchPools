@@ -21,7 +21,7 @@ contract StakeVault is Ownable, Initializable {
     mapping(uint256 => Stake) public stakes;
     mapping(address => uint256[]) public stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the stakes array
 
-    enum PoolStatus {AcceptingStakes, OfferPosted, Delivering, Claiming, Closed}
+    enum PoolStatus {AcceptingStakes, OfferPosted, OfferClosed, Delivering, Claiming, Closed}
 
     struct PoolInfo {
         address sponsor;
@@ -58,7 +58,7 @@ contract StakeVault is Ownable, Initializable {
         emit PoolOpened(poolId, sponsor);
     }
 
-    function updatePoolStatus (uint256 poolId, uint256 status) external {
+    function updatePoolStatus (uint256 poolId, uint256 status) external onlyOwner{
         PoolInfo storage pi = poolsById[poolId];
         pi.status = PoolStatus(status);
     }
@@ -115,7 +115,7 @@ contract StakeVault is Ownable, Initializable {
 
     /// @notice Un-Stake
     function unStake (uint256 stakeId) external {
-        require(!_poolTrackerContract.isDeliveringStatus(stakes[stakeId].poolId), "Pool is in Delivering Status"); 
+        require(!_poolTrackerContract.isDeliveringStatus(stakes[stakeId].poolId) && !_poolTrackerContract.isClaimingStatus(stakes[stakeId].poolId), "Pool is in Delivering or Claming Status"); 
         require(msg.sender == stakes[stakeId].staker, "Must be the staker to call this");      //Omited in emergency
         _sendBack(stakeId); 
 

@@ -190,16 +190,6 @@ contract LaunchPoolTracker is Ownable, Initializable{
         emit OfferCancelled(poolId, msg.sender);
     }
     
-    // runs the logic for an offer that fails to reach minimum commitment, or succeeds and goes to Delivering status
-    function endOffer (uint256 poolId) public onlyOwner isValidPoolId(poolId) {
-        require(!isOfferInPeriod(poolId), "Pool is in the offer period"); 
-        LaunchPool storage lp = poolsById[poolId];
-        lp.status = PoolStatus.Delivering;
-        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
-
-        emit OfferEnded(poolId, msg.sender);
-    }
-
     function updateOffer (uint256 poolId, uint256 finalSalesPrice_) public onlyOwner isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
         lp.offer.offerStart = block.timestamp;
@@ -250,5 +240,10 @@ contract LaunchPoolTracker is Ownable, Initializable{
     function isDeliveringStatus(uint256 poolId) external view returns(bool) {
         LaunchPool storage lp = poolsById[poolId];
         return (lp.status == PoolStatus.Delivering);
+    }
+
+    function isClaimingStatus(uint256 poolId) external view returns(bool) {
+        LaunchPool storage lp = poolsById[poolId];
+        return (lp.status == PoolStatus.Claiming);
     }
 }

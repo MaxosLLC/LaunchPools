@@ -21,7 +21,7 @@ contract StakeVault is Ownable, Initializable {
     mapping(uint256 => Stake) public stakes;
     mapping(address => uint256[]) public stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the stakes array
 
-    enum PoolStatus {AcceptingStakes, OfferPosted, OfferClosed, Delivering, Claiming, Closed}
+    enum PoolStatus {AcceptingStakes, OfferPosted, Delivering, Claiming, Closed}
 
     struct PoolInfo {
         address sponsor;
@@ -58,7 +58,7 @@ contract StakeVault is Ownable, Initializable {
         emit PoolOpened(poolId, sponsor);
     }
 
-    function updatePoolStatus (uint256 poolId, uint256 status) external onlyOwner{
+    function updatePoolStatus (uint256 poolId, uint256 status) external {
         PoolInfo storage pi = poolsById[poolId];
         pi.status = PoolStatus(status);
     }
@@ -154,26 +154,9 @@ contract StakeVault is Ownable, Initializable {
         }       
     }
 
-    function setDeliveringStatus(uint256 poolId) external onlyOwner {
-        PoolInfo storage poolInfo = poolsById[poolId];
-        poolInfo.status = PoolStatus.Delivering;
-
-        emit ClaimStatus(poolId, msg.sender, poolInfo.status);
-    }
-
-    // Put the pool into “Claim” status. The administrator can do this after checking delivery
-    function setPoolClaimStatus(uint256 poolId) external onlyOwner {
-        PoolInfo storage poolInfo = poolsById[poolId];
-        require(poolInfo.status == PoolStatus.Delivering, "LaunchPool is not delivering status.");
-        
-        poolInfo.status = PoolStatus.Claiming;
-
-        emit ClaimStatus(poolId, msg.sender, poolInfo.status);
-    }
-
     // must be called by the sponsor address
     // The sponsor claims committed stakes in a pool. This checks to see if the admin has put the pool in “claiming” state. It sends or allows all stakes to the sponsor address. It closes the pool (sending back all uncommitted stakes)
-    function claim (uint256 poolId) external{
+    function claim (uint256 poolId) external {
         PoolInfo storage poolInfo = poolsById[poolId];
         require(msg.sender == poolInfo.sponsor, "Claim should be called by sponsor.");
         require(poolInfo.status == PoolStatus.Claiming, "Claim should be called when the pool is in claiming state.");

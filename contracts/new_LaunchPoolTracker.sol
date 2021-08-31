@@ -127,7 +127,7 @@ contract LaunchPoolTracker is Ownable, Initializable{
         _stakeVault.addPool(_curPoolId, msg.sender);
     }
 
-    function updatePoolStatus(uint256 poolId, uint256 status) public onlyOwner {
+    function updatePoolStatus(uint256 poolId, uint256 status) private {
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus(status);
 
@@ -175,6 +175,7 @@ contract LaunchPoolTracker is Ownable, Initializable{
     // url contains the site that the description of the offer made by the sponsor
     function newOffer (uint256 poolId, uint256 finalSalesPrice_) public isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
+        require(lp.sponsor == msg.sender, "Only sponsor can create offer");
         lp.offer.offerStart = block.timestamp;
         lp.offer.finalSalesPrice = finalSalesPrice_;
         lp.status = PoolStatus.OfferPosted;
@@ -183,15 +184,17 @@ contract LaunchPoolTracker is Ownable, Initializable{
     }
     
     // put back in staking status.
-    function cancelOffer (uint256 poolId) public onlyOwner isValidPoolId(poolId) {
+    function cancelOffer (uint256 poolId) public isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
-        lp.status = PoolStatus.AcceptingStakes;
+        require(lp.sponsor == msg.sender, "Only sponsor can cancel offer");
+        lp.status = PoolStatus.Closed;
         _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
         emit OfferCancelled(poolId, msg.sender);
     }
     
-    function updateOffer (uint256 poolId, uint256 finalSalesPrice_) public onlyOwner isValidPoolId(poolId) {
+    function updateOffer (uint256 poolId, uint256 finalSalesPrice_) public isValidPoolId(poolId) {
         LaunchPool storage lp = poolsById[poolId];
+        require(lp.sponsor == msg.sender, "Only sponsor can update offer");
         lp.offer.offerStart = block.timestamp;
         lp.offer.finalSalesPrice = finalSalesPrice_;
 
@@ -253,12 +256,14 @@ contract LaunchPoolTracker is Ownable, Initializable{
     function setClosedStatus(uint256 poolId) external onlyOwner {
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus.Closed;
+        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
     }
 
     function setClaimingStatus(uint256 poolId) external onlyOwner {
         LaunchPool storage lp = poolsById[poolId];
         require(lp.status != PoolStatus.Closed, "Closed status cannot be updated");
         lp.status = PoolStatus.Claiming;
+        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
     }
 
     function setDeliveringStatus(uint256 poolId) external {
@@ -266,5 +271,6 @@ contract LaunchPoolTracker is Ownable, Initializable{
         require(lp.status == PoolStatus.OfferPosted && !isOfferInPeriod(poolId), "Offer is the period");
         require(lp.status != PoolStatus.Closed, "Closed status cannot be updated");
         lp.status = PoolStatus.Delivering;
+        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
     }
 }

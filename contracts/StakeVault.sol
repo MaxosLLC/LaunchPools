@@ -183,7 +183,14 @@ contract StakeVault is Ownable, Initializable {
     function setPoolStatus(uint256 poolId, uint256 status) public {
         PoolInfo storage pi = poolsById[poolId];
         require(pi.status != PoolStatus.Closed, "Closed status cannot be updated");
+        require(PoolStatus(status) != PoolStatus.Closed, "Claiming status cannot be set in this function");
         pi.status = PoolStatus(status);
+    }
+
+    function setClamingStatus(uint256 poolId) public onlyOwner {
+        PoolInfo storage pi = poolsById[poolId];
+        require(pi.status != PoolStatus.Closed, "Closed status cannot be updated");
+        pi.status = PoolStatus.Claiming;
     }
 }
 

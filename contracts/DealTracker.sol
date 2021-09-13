@@ -2,11 +2,11 @@
 pragma solidity ^0.8.0;
 
 
-import "./new_StakeVault.sol";
+import "./StakeVault.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract LaunchPoolTracker is Ownable, Initializable{
+contract DealTracker is Ownable, Initializable{
 
     mapping(address => bool) internal _allowedTokenAddresses;
     // Tokens to stake. We will upgrade this later.
@@ -48,7 +48,7 @@ contract LaunchPoolTracker is Ownable, Initializable{
     event OfferEnded(uint, address);
     event PoolClosed(uint, address);
 
-    /// @notice creates a new LaunchPoolTracker.
+    /// @notice creates a new DealTracker.
     /// @dev up to 3 tokens are allowed to be staked.
     constructor() {
        
@@ -76,11 +76,11 @@ contract LaunchPoolTracker is Ownable, Initializable{
 
 
 
-    // @notice check launchPoolTracker is open
+    // @notice check DealTracker is open
     modifier isTrackerOpen () {
         require(
             _isTrackerClosed == false,
-            "LaunchPoolTracker is closed."
+            "DealTracker is closed."
         );
         _;
     }
@@ -127,11 +127,9 @@ contract LaunchPoolTracker is Ownable, Initializable{
         _stakeVault.addPool(_curPoolId, msg.sender);
     }
 
-    function updatePoolStatus(uint256 poolId, uint256 status) private {
+    function updatePoolStatus(uint256 poolId, uint256 status) external {
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus(status);
-
-        _stakeVault.updatePoolStatus(poolId, status);
     }
 
     // @notice return the launchpool status is same as expected
@@ -159,7 +157,7 @@ contract LaunchPoolTracker is Ownable, Initializable{
     }
 
     // called from the stakeVault. Adds to a list of the stakes in a pool, in stake order
-    function addStake (uint256 poolId, uint256 stakeId) public isValidPoolId(poolId){
+    function addStake (uint256 poolId, uint256 stakeId) external isValidPoolId(poolId){
         LaunchPool storage lp = poolsById[poolId];
         lp.stakes.push(stakeId);
     }
@@ -220,7 +218,6 @@ contract LaunchPoolTracker is Ownable, Initializable{
     
     // calls stakeVault closePool, sets status to closed
     function closePool (uint256 poolId) public isValidPoolId(poolId) {
-        _stakeVault.closePool(poolId);
         LaunchPool storage lp = poolsById[poolId];
         lp.status = PoolStatus.Closed;
         _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
@@ -240,37 +237,5 @@ contract LaunchPoolTracker is Ownable, Initializable{
         offerPeriod = period;
     }
 
-    //Checking Pool Status functions
-
-    function isDeliveringStatus(uint256 poolId) external view returns(bool) {
-        LaunchPool storage lp = poolsById[poolId];
-        return (lp.status == PoolStatus.Delivering);
-    }
-
-    function isClaimingStatus(uint256 poolId) external view returns(bool) {
-        LaunchPool storage lp = poolsById[poolId];
-        return (lp.status == PoolStatus.Claiming);
-    }
-
-    //Switching Pool Status function
-    function setClosedStatus(uint256 poolId) external onlyOwner {
-        LaunchPool storage lp = poolsById[poolId];
-        lp.status = PoolStatus.Closed;
-        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
-    }
-
-    function setClaimingStatus(uint256 poolId) external onlyOwner {
-        LaunchPool storage lp = poolsById[poolId];
-        require(lp.status != PoolStatus.Closed, "Closed status cannot be updated");
-        lp.status = PoolStatus.Claiming;
-        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
-    }
-
-    function setDeliveringStatus(uint256 poolId) external {
-        LaunchPool storage lp = poolsById[poolId];
-        require(lp.status == PoolStatus.OfferPosted && !isOfferInPeriod(poolId), "Offer is the period");
-        require(lp.status != PoolStatus.Closed, "Closed status cannot be updated");
-        lp.status = PoolStatus.Delivering;
-        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
-    }
+   
 }

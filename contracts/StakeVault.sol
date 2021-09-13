@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./new_LaunchPoolTracker.sol";
+import "./DealTracker.sol";
 import "./interfaces/IERC20Minimal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -16,7 +16,7 @@ contract StakeVault is Ownable, Initializable {
         bool isCommitted;
     }
 
-    LaunchPoolTracker private _poolTrackerContract;
+    DealTracker private _poolTrackerContract;
     uint128 private _curStakeId = 0;
     mapping(uint256 => Stake) public stakes;
     mapping(address => uint256[]) public stakesByInvestor; // holds an array of stakes for one investor. Each element of the array is an ID for the stakes array
@@ -42,7 +42,7 @@ contract StakeVault is Ownable, Initializable {
     event ClaimStatus(uint, address, PoolStatus);
     event Claim(uint, address);
 
-    function setPoolContract(LaunchPoolTracker poolTrackerContract_) external onlyOwner{
+    function setPoolContract(DealTracker poolTrackerContract_) external onlyOwner{
         _poolTrackerContract = poolTrackerContract_;
     }
 
@@ -61,24 +61,6 @@ contract StakeVault is Ownable, Initializable {
     function updatePoolStatus (uint256 poolId, uint256 status) external {
         PoolInfo storage pi = poolsById[poolId];
         pi.status = PoolStatus(status);
-    }
-
-    // Can be called by the admin or the sponsor. Can be called by any address after the expiration date. Sends back all stakes.
-    // A closed pool only allows unStake actions
-    function closePool (uint256 poolId) external {
-        PoolInfo storage poolInfo = poolsById[poolId];
-        require((msg.sender == poolInfo.sponsor) || msg.sender == owner(), "ClosePool is not allowed for this case.");
-
-        poolInfo.status = PoolStatus.Closed;
-        
-        for(uint256 i = 0 ; i < _curStakeId ; i ++) {
-            if(stakes[i].poolId == poolId) {
-                _sendBack(i);
-                break;
-            }
-        }
-
-        emit PoolClosed(poolId, msg.sender);
     }
 
     // Make a stake structure
@@ -115,7 +97,7 @@ contract StakeVault is Ownable, Initializable {
 
     /// @notice Un-Stake
     function unStake (uint256 stakeId) external {
-        require(!_poolTrackerContract.isDeliveringStatus(stakes[stakeId].poolId) && !_poolTrackerContract.isClaimingStatus(stakes[stakeId].poolId), "Pool is in Delivering or Claming Status"); 
+        require(isClaimingStatus(stakes[stakeId].poolId), "Pool is in Delivering or Claming Status"); 
         require(msg.sender == stakes[stakeId].staker, "Must be the staker to call this");      //Omited in emergency
         _sendBack(stakeId); 
 
@@ -182,6 +164,26 @@ contract StakeVault is Ownable, Initializable {
         uint temp = stakes[stakeId].amount;
         stakes[stakeId].amount = 0;
         IERC20Minimal(stakes[stakeId].token).transfer(stakes[stakeId].staker, temp);
+    }
+
+    
+    /// @notice Checking Pool Status functions
+
+    function isDeliveringStatus(uint256 poolId) external view returns(bool) {
+        PoolInfo storage pi = poolsById[poolId];
+        return (pi.status == PoolStatus.Delivering);
+    }
+
+    function isClaimingStatus(uint256 poolId) private view returns(bool) {
+        PoolInfo storage pi = poolsById[poolId];
+        return (pi.status == PoolStatus.Claiming);
+    }
+
+    /// @notice set pool status
+    function setPoolStatus(uint256 poolId, uint256 status) public {
+        PoolInfo storage pi = poolsById[poolId];
+        require(pi.status != PoolStatus.Closed, "Closed status cannot be updated");
+        pi.status = PoolStatus(status);
     }
 }
 

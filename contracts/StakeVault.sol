@@ -104,38 +104,6 @@ contract StakeVault is Ownable, Initializable {
         emit Unstake(stakeId, msg.sender);
     }
 
-    /// @notice emergency unstake must be toggled on by owner. Allows anyone to unstake commited stakes
-    function emergencyUnstake(uint256 stakeId) external {
-        require(pool_emergency[stakes[stakeId].poolId], "Owner must declare emergency for this pool");
-        _sendBack(stakeId);
-
-        emit EmergencyUnstake(stakeId, msg.sender);
-    }
-
-    /// @notice owner can declare a pool in emergency
-    function declareEmergency(uint256 poolId) external onlyOwner {
-        require(pool_emergency[poolId] != true, "already in emergency state");
-        pool_emergency[poolId] = true;
-
-        emit Emergency(poolId, pool_emergency[poolId], msg.sender);
-    }
-
-    /// @notice owner can declare a pool in emergency
-    function removeEmergency(uint256 poolId) external onlyOwner {
-        require(pool_emergency[poolId] != false, "Pool not in emergency state");
-        pool_emergency[poolId] = false;
-
-        emit Emergency(poolId, pool_emergency[poolId], msg.sender);
-    }
-
-    function getCommittedAmount(uint256 stakeId) external view returns(uint256) {
-        if(stakes[stakeId].isCommitted) {
-            return stakes[stakeId].amount;
-        } else {
-            return 0;
-        }       
-    }
-
     // must be called by the sponsor address
     // The sponsor claims committed stakes in a pool. This checks to see if the admin has put the pool in “claiming” state. It sends or allows all stakes to the sponsor address. It closes the pool (sending back all uncommitted stakes)
     function claim (uint256 poolId) external {
@@ -183,14 +151,10 @@ contract StakeVault is Ownable, Initializable {
     function setPoolStatus(uint256 poolId, uint256 status) public {
         PoolInfo storage pi = poolsById[poolId];
         require(pi.status != PoolStatus.Closed, "Closed status cannot be updated");
-        require(PoolStatus(status) != PoolStatus.Closed, "Claiming status cannot be set in this function");
+        if(PoolStatus(status) == PoolStatus.Claiming) {
+            require(msg.sender == owner(), "Claiming status cannot be set in this function");
+        }
         pi.status = PoolStatus(status);
-    }
-
-    function setClamingStatus(uint256 poolId) public onlyOwner {
-        PoolInfo storage pi = poolsById[poolId];
-        require(pi.status != PoolStatus.Closed, "Closed status cannot be updated");
-        pi.status = PoolStatus.Claiming;
     }
 }
 

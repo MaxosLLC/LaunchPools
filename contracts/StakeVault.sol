@@ -4,16 +4,15 @@ pragma solidity ^0.8.0;
 import "./DealTracker.sol";
 import "./interfaces/IERC20Minimal.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract StakeVault is Ownable, Initializable {
+contract StakeVault is Ownable {
     struct Stake { 
         uint128 id;
         address staker;
         address token;
         uint128 amount;
         uint128 poolId;
-        bool isCommitted;
+        bool isClaimed;
     }
 
     DealTracker private _poolTrackerContract;
@@ -26,6 +25,7 @@ contract StakeVault is Ownable, Initializable {
     struct PoolInfo {
         address sponsor;
         PoolStatus status;
+        uint256 dateClaiming;
     }
 
     mapping(uint256 => PoolInfo) poolsById;
@@ -35,8 +35,7 @@ contract StakeVault is Ownable, Initializable {
     event PoolClosed(uint, address);
     event StakeAdded(uint, uint, address, uint, address);
     event Unstake(uint, address);
-    event EmergencyUnstake(uint, address);
-    event Emergency(uint, bool, address);
+    event EmptyPool(address, uint);
     event StakeCommitted(uint, bool, address);
     event StakesUncommitted(uint, address);
     event ClaimStatus(uint, address, PoolStatus);
@@ -74,7 +73,7 @@ contract StakeVault is Ownable, Initializable {
         uint128 amount
     ) external
     {
-        require(_poolTrackerContract.isOfferInPeriod(poolId), "Pool has expired"); 
+        require(!(isDeliveringStatus(poolId) || isClaimingStatus(poolId) || isClosedStatus(poolId)), "Pool has expired"); 
         address staker = msg.sender;
         _curStakeId = _curStakeId + 1;
 
@@ -84,7 +83,7 @@ contract StakeVault is Ownable, Initializable {
         st.token = token;
         st.amount = amount;
         st.poolId = poolId;
-        st.isCommitted = false;
+        st.isClaimed = false;
 
         stakesByInvestor[staker].push(_curStakeId);
 
@@ -97,11 +96,29 @@ contract StakeVault is Ownable, Initializable {
 
     /// @notice Un-Stake
     function unStake (uint256 stakeId) external {
-        require(isClaimingStatus(stakes[stakeId].poolId), "Pool is in Delivering or Claming Status"); 
+        PoolInfo storage poolInfo = poolsById[stakes[stakeId].poolId];
+        require(!isClaimingStatus(stakes[stakeId].poolId) || (isClaimingStatus(stakes[stakeId].poolId) && block.timestamp > poolInfo.dateClaiming + 7 days) , "Pool is in Delivering or Claming Status"); 
         require(msg.sender == stakes[stakeId].staker, "Must be the staker to call this");      //Omited in emergency
+        require(stakes[stakeId].isClaimed, "This stake is already claimed");
         _sendBack(stakeId); 
 
         emit Unstake(stakeId, msg.sender);
+    }
+
+    /// @notice Any users can empty pool to send back all stakes in the pool after pool is closed
+    function emptyPool(uint256 poolId) external {
+        PoolInfo storage poolInfo = poolsById[poolId];
+        require(poolInfo.status == PoolStatus.Closed, "Owner must declare emergency for this pool");
+        uint256[] memory _stakes = _poolTrackerContract.getStakes(poolId);
+        for (uint256 i = 0; i < _stakes.length; i++) {
+            _sendBack(_stakes[i]);
+        }
+
+        emit EmptyPool(msg.sender, poolId);
+    }
+
+    function getCommittedAmount(uint256 stakeId) external view returns(uint256) {
+        return stakes[stakeId].amount;
     }
 
     // must be called by the sponsor address
@@ -110,15 +127,11 @@ contract StakeVault is Ownable, Initializable {
         PoolInfo storage poolInfo = poolsById[poolId];
         require(msg.sender == poolInfo.sponsor, "Claim should be called by sponsor.");
         require(poolInfo.status == PoolStatus.Claiming, "Claim should be called when the pool is in claiming state.");
-        
-        for(uint256 i = 0 ; i < _curStakeId ; i ++) {
-            if(stakes[i].poolId == poolId) {
-                if(stakes[i].isCommitted == true) {
-                    IERC20Minimal(stakes[i].token).transfer(poolInfo.sponsor, stakes[i].amount);
-                }
-                else {
-                    IERC20Minimal(stakes[i].token).transfer(stakes[i].staker, stakes[i].amount);
-                }
+         uint256[] memory _stakes = _poolTrackerContract.getStakes(poolId);
+        for(uint256 i = 0; i < _stakes.length; i ++) {
+            if(!stakes[_stakes[i]].isClaimed) {
+                IERC20Minimal(stakes[_stakes[i]].token).transfer(poolInfo.sponsor, stakes[_stakes[i]].amount);
+                stakes[_stakes[i]].isClaimed = true;
             }
         }
         poolInfo.status = PoolStatus.Closed;
@@ -137,7 +150,7 @@ contract StakeVault is Ownable, Initializable {
     
     /// @notice Checking Pool Status functions
 
-    function isDeliveringStatus(uint256 poolId) external view returns(bool) {
+    function isDeliveringStatus(uint256 poolId) private view returns(bool) {
         PoolInfo storage pi = poolsById[poolId];
         return (pi.status == PoolStatus.Delivering);
     }
@@ -147,12 +160,18 @@ contract StakeVault is Ownable, Initializable {
         return (pi.status == PoolStatus.Claiming);
     }
 
+    function isClosedStatus(uint256 poolId) private view returns(bool) {
+        PoolInfo storage pi = poolsById[poolId];
+        return (pi.status == PoolStatus.Closed);
+    }
+
     /// @notice set pool status
     function setPoolStatus(uint256 poolId, uint256 status) public {
         PoolInfo storage pi = poolsById[poolId];
         require(pi.status != PoolStatus.Closed, "Closed status cannot be updated");
         if(PoolStatus(status) == PoolStatus.Claiming) {
             require(msg.sender == owner(), "Claiming status cannot be set in this function");
+            pi.dateClaiming = block.timestamp;
         }
         pi.status = PoolStatus(status);
     }

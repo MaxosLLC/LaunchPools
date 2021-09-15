@@ -38,6 +38,7 @@ contract DealTracker is Ownable, Initializable{
         uint256[] stakes;
         Offer offer;
         uint256 totalCommittedAmount;
+
     }    
 
     StakeVault _stakeVault;
@@ -236,6 +237,4 @@ contract DealTracker is Ownable, Initializable{
     function setOfferPeriod(uint256 period) public onlyOwner {
         offerPeriod = period;
     }
-
-   
 }

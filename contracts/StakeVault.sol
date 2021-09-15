@@ -12,7 +12,6 @@ contract StakeVault is Ownable {
         address token;
         uint128 amount;
         uint128 poolId;
-        bool isClaimed;
     }
 
     DealTracker private _poolTrackerContract;
@@ -26,6 +25,8 @@ contract StakeVault is Ownable {
         address sponsor;
         PoolStatus status;
         uint256 dateClaiming;
+        uint128 claimStakeCount;
+        uint128 claimLastStakeAmount;
     }
 
     mapping(uint256 => PoolInfo) poolsById;
@@ -53,6 +54,8 @@ contract StakeVault is Ownable {
         PoolInfo storage pi = poolsById[poolId];
         pi.sponsor = sponsor;
         pi.status = PoolStatus.AcceptingStakes;
+        pi.claimLastStakeAmount = 0;
+        pi.claimStakeCount = 0;
 
         emit PoolOpened(poolId, sponsor);
     }
@@ -83,7 +86,6 @@ contract StakeVault is Ownable {
         st.token = token;
         st.amount = amount;
         st.poolId = poolId;
-        st.isClaimed = false;
 
         stakesByInvestor[staker].push(_curStakeId);
 
@@ -99,9 +101,9 @@ contract StakeVault is Ownable {
         PoolInfo storage poolInfo = poolsById[stakes[stakeId].poolId];
         require(!isClaimingStatus(stakes[stakeId].poolId) || (isClaimingStatus(stakes[stakeId].poolId) && block.timestamp > poolInfo.dateClaiming + 7 days) , "Pool is in Delivering or Claming Status"); 
         require(msg.sender == stakes[stakeId].staker, "Must be the staker to call this");      //Omited in emergency
-        require(stakes[stakeId].isClaimed, "This stake is already claimed");
+        require(stakes[stakeId].amount > 0, "This stake amount is zero");
         _sendBack(stakeId); 
-
+        
         emit Unstake(stakeId, msg.sender);
     }
 
@@ -125,13 +127,21 @@ contract StakeVault is Ownable {
     // The sponsor claims committed stakes in a pool. This checks to see if the admin has put the pool in “claiming” state. It sends or allows all stakes to the sponsor address. It closes the pool (sending back all uncommitted stakes)
     function claim (uint256 poolId) external {
         PoolInfo storage poolInfo = poolsById[poolId];
+        uint256[] memory _stakes = _poolTrackerContract.getStakes(poolId);
         require(msg.sender == poolInfo.sponsor, "Claim should be called by sponsor.");
         require(poolInfo.status == PoolStatus.Claiming, "Claim should be called when the pool is in claiming state.");
-         uint256[] memory _stakes = _poolTrackerContract.getStakes(poolId);
-        for(uint256 i = 0; i < _stakes.length; i ++) {
-            if(!stakes[_stakes[i]].isClaimed) {
-                IERC20Minimal(stakes[_stakes[i]].token).transfer(poolInfo.sponsor, stakes[_stakes[i]].amount);
-                stakes[_stakes[i]].isClaimed = true;
+        require(_stakes.length > poolInfo.claimStakeCount, "number of stakes cannot be less than claim stake count");
+
+        for(uint256 i = 0; i < poolInfo.claimStakeCount; i ++) {
+            if(stakes[_stakes[i]].amount > 0) {
+                uint256 amount = stakes[_stakes[i]].amount;
+                if(i == poolInfo.claimStakeCount - 1) {
+                    IERC20Minimal(stakes[_stakes[i]].token).transfer(poolInfo.sponsor, poolInfo.claimLastStakeAmount);
+                    stakes[_stakes[i]].amount -= poolInfo.claimLastStakeAmount;
+                } else {
+                    IERC20Minimal(stakes[_stakes[i]].token).transfer(poolInfo.sponsor, amount);
+                    stakes[_stakes[i]].amount = 0;
+                }
             }
         }
         poolInfo.status = PoolStatus.Closed;
@@ -165,15 +175,21 @@ contract StakeVault is Ownable {
         return (pi.status == PoolStatus.Closed);
     }
 
-    /// @notice set pool status
+    /// @notice set pool status without claiming status
     function setPoolStatus(uint256 poolId, uint256 status) public {
         PoolInfo storage pi = poolsById[poolId];
         require(pi.status != PoolStatus.Closed, "Closed status cannot be updated");
-        if(PoolStatus(status) == PoolStatus.Claiming) {
-            require(msg.sender == owner(), "Claiming status cannot be set in this function");
-            pi.dateClaiming = block.timestamp;
-        }
+        require(PoolStatus(status) != PoolStatus.Claiming, "You can't set the claiming status in this function.");
         pi.status = PoolStatus(status);
+    }
+
+    function setClaimStatus(uint256 poolId, uint128 _stakeCount, uint128 _lastAmount) public onlyOwner {
+        PoolInfo storage pi = poolsById[poolId];
+        require(pi.status != PoolStatus.Closed, "Closed status cannot be updated");
+        pi.status = PoolStatus.Claiming;
+        pi.dateClaiming = block.timestamp;
+        pi.claimStakeCount = _stakeCount;
+        pi.claimLastStakeAmount = _lastAmount;
     }
 }
 

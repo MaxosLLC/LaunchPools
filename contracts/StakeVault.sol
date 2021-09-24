@@ -212,8 +212,8 @@ contract StakeVault is Ownable {
     ) public {
         StakeInfo storage stake = stakeInfo[_stakeId];
         require(stake.staker == msg.sender || owner() == msg.sender, "You have no permission to send back the staked amount.");
-        DealInfo storage deal = dealInfo[stake.dealId];
         require(stake.amount > 0, "The withdraw amount is not enough.");
+        DealInfo storage deal = dealInfo[stake.dealId];
         uint256 _amount = stake.amount;
         stake.amount = 0;
         IERC20(deal.stakingToken).transfer(stake.staker, _amount);

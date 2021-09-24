@@ -209,8 +209,9 @@ contract StakeVault is Ownable {
 
     function sendBack(
         uint256 _stakeId
-    ) public onlyOwner {
+    ) public {
         StakeInfo storage stake = stakeInfo[_stakeId];
+        require(stake.staker == msg.sender || owner() == msg.sender, "You have no permission to send back the staked amount.");
         DealInfo storage deal = dealInfo[stake.dealId];
         require(stake.amount > 0, "The withdraw amount is not enough.");
         uint256 _amount = stake.amount;

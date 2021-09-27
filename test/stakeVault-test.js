@@ -7,7 +7,7 @@ async function _mintTokensAndApprove(stakeVault, token, account, amount) {
 }
 
 describe("Test stake vault", function() {
-  let admin, sponsor, staker, usdc, stakeVault, launchPoolTracker;
+  let admin, sponsor, staker, usdc, stakeVault, dealTracker;
   const initialAmount = 300;
 
   beforeEach("Scenario to test the stakeVault", async () => {
@@ -20,8 +20,8 @@ describe("Test stake vault", function() {
     stakeVault = await StakeVault.deploy();
     await stakeVault.deployed();
 
-    const LaunchPoolTracker = await ethers.getContractFactory("LaunchPoolTracker");
-    launchPoolTracker = await LaunchPoolTracker.deploy(
+    const DealTracker = await ethers.getContractFactory("DealTracker");
+    dealTracker = await DealTracker.deploy(
       [usdc.address],
       stakeVault.address
     );
@@ -30,40 +30,38 @@ describe("Test stake vault", function() {
 
     await _mintTokensAndApprove(stakeVault, usdc, sponsor, initialAmount);
 
-    await launchPoolTracker.deployed();
+    await dealTracker.deployed();
 
     // As Sponsor: Create a pool. The minimum amount should be $100. The maximum amount should be $1000
-    await launchPoolTracker.addPool(
+    await dealTracker.addPool(
       "testpool1",
+      "www.test.com",
       86400,
       3600,
       100,
       1000
     );
 
-    stakeVault.setPoolContract(launchPoolTracker.address);
+    stakeVault.setPoolContract(dealTracker.address);
   });
 
   it("Scenario to test the stakeVault", async function(){
-    poolId = await launchPoolTracker.poolIds(0);
+    poolId = await dealTracker.poolIds(0);
 
     // As Sponsor: Add an offer to the pool and put the pool into committing state.
-    await launchPoolTracker.newOffer(poolId, 'https://maxos.com', 1000)
-    launchPool = await launchPoolTracker.poolsById(poolId);
+    await dealTracker.newOffer(poolId, 'https://maxos.com', 1000)
+    launchPool = await dealTracker.poolsById(poolId);
     expect(launchPool.status).to.equal(1);
 
     // As Investor: Add three stakes. All of them will be USDC. STAKE 1 - $50 . Stake 2 - $75 . Stake 3 - $50
     await stakeVault.addStake(poolId, usdc.address, 50);
     await stakeVault.addStake(poolId, usdc.address, 75);
     await stakeVault.addStake(poolId, usdc.address, 50);
-    
 
+    //An Investor unstake his last stake
+    await stakeVault.unStake(2);
     const stakes = await launchPoolTracker.getStakes(poolId);
-    expect(stakes.length).to.equal(3);
-
-    // As Investor: Commit stakes 2 and 3    
-    await stakeVault.commitStake(stakes[1]);
-    await stakeVault.commitStake(stakes[2]);
+    expect(stakes.length).to.equal(2);
 
     const totalCommittedAmount = await launchPoolTracker.getTotalCommittedAmount(poolId);
     expect(totalCommittedAmount.toNumber()).to.equal(125);
@@ -71,8 +69,6 @@ describe("Test stake vault", function() {
     await stakeVault.setDeliveringStatus(poolId);
 
     // // As Admin: Set the expiration time on the offer to "Now". THIS WILL REQUIRE CHANGES TO THE LAUNCHPOOL CODE
-    await launchPoolTracker.updateOffer(poolId, launchPool.offer.url, 0);
-    await launchPoolTracker.endOffer(poolId);
     const canClaimOffer = await launchPoolTracker.canClaimOffer(poolId)
     expect(canClaimOffer).to.equal(true);
     await stakeVault.setPoolClaimStatus(poolId);

@@ -60,7 +60,7 @@ contract StakeVault is Ownable {
         emit PoolOpened(poolId, sponsor);
     }
 
-    function updatePoolStatus (uint256 poolId, uint256 status) external {
+    function updatePoolStatus (uint256 poolId, uint256 status) external {        
         PoolInfo storage pi = poolsById[poolId];
         pi.status = PoolStatus(status);
     }
@@ -190,6 +190,13 @@ contract StakeVault is Ownable {
         pi.dateClaiming = block.timestamp;
         pi.claimStakeCount = _stakeCount;
         pi.claimLastStakeAmount = _lastAmount;
+    }
+
+    // @notice OfferPosted status can be set only by DealTracker
+    function setOfferPostedStatus(uint256 poolId) external {
+        require(address(_poolTrackerContract) == msg.sender, "Only tracker contract can call this function");
+        PoolInfo storage pi = poolsById[poolId];
+        pi.status = PoolStatus.OfferPosted;
     }
 }
 

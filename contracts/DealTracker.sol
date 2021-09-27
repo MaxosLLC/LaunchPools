@@ -139,12 +139,6 @@ contract DealTracker is Ownable, Initializable{
         return lp.status == status;
     }
 
-    // @notice Check the launchPool offer is expired or not
-    function _isAfterOfferClose(uint256 poolId) internal view returns (bool) {
-        LaunchPool storage lp = poolsById[poolId];
-        return block.timestamp >= lp.offer.offerStart + offerPeriod;
-    }
-
     //@notice check the offer is past commit days
     function isOfferInPeriod(uint256 poolId) public view returns (bool) {
         LaunchPool storage lp = poolsById[poolId];
@@ -178,7 +172,7 @@ contract DealTracker is Ownable, Initializable{
         lp.offer.offerStart = block.timestamp;
         lp.offer.finalSalesPrice = finalSalesPrice_;
         lp.status = PoolStatus.OfferPosted;
-        _stakeVault.updatePoolStatus(poolId, uint256(lp.status));
+        _stakeVault.setOfferPostedStatus(poolId);
         emit NewOffer(poolId, msg.sender);
     }
     

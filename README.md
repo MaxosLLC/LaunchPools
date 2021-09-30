@@ -15,7 +15,7 @@ Install all dependencies: `npm i`.
 In order to test the system e2e, a local blockchain must be running.
 
 1. Run the local blockchain: `npx hardhat node`.
-2. Compile and deploy all contracts to this network: `npx hardhat run --network localhost scripts/deploy-contracts.js`.
+2. Compile and deploy all contracts to this network: `npx hardhat run --network localhost scripts/deploy.ts`.
 
 This will print out the addresses where the contracts where deployed. These values will be
 used in the frontend.

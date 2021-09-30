@@ -63,6 +63,11 @@ contract StakeVault is Ownable {
         allowedTokenList[defaultToken] = true;
     }
 
+    modifier allowedToken(address _token) {
+        require(allowedTokenList[_token], "The staking token is not allowed");
+        _;
+    }
+
     modifier existDeal(uint256 _dealId) {
         require(_dealId <= _dealIds.current(), "The Deal is not exist.");
         _;
@@ -76,7 +81,7 @@ contract StakeVault is Ownable {
         uint256 _preSaleAmount,
         uint256 _openSaleAmount,
         address _stakingToken
-    ) public {
+    ) public allowedToken(_stakingToken) {
         _dealIds.increment();
         uint256 dealId = _dealIds.current();
         DealInfo storage deal = dealInfo[dealId];
@@ -227,7 +232,7 @@ contract StakeVault is Ownable {
         uint256[] memory stakeIds = deal.stakeIds;
         uint256 stakedAmount; // total staked amount in the deal before _staker stake 
         uint256 bonus; // the average bonus of the _staker after staking
-        uint256 _amount = stake.amount.div(stake.restAmount); // staked amount while in the presale
+        uint256 _amount = stake.amount.sub(stake.restAmount); // staked amount while in the presale
         
         for(uint256 i=stakeIds[0]; i<_stakeId; i++) {
             StakeInfo memory _stake = stakeInfo[i];

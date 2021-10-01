@@ -8,6 +8,7 @@ Install all dependencies: `npm i`.
 
 ### Running the tests
 
+`npx hardhat compile`.
 `npx hardhat test`.
 
 ### Running a local node:

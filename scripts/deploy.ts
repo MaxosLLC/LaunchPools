@@ -10,7 +10,10 @@ async function deploySmartContract() {
   console.log('Deploying contracts with the account:', owner.address);
 
   const StakeVaultFactory = await ethers.getContractFactory("StakeVault");
-  stakeVault = await StakeVaultFactory.deploy() as StakeVault;
+  const offerPeriod       = 604800;
+  const tokenAddress      = '0xeb8f08a975Ab53E34D8a0330E0D34de942C95926'; // Rinkeyby USDC Address
+
+  stakeVault = await StakeVaultFactory.deploy(tokenAddress, offerPeriod) as StakeVault;
   await stakeVault.deployed();
 
   console.log(`StakeVault deployed! Address: ${stakeVault.address}`);

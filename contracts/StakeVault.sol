@@ -57,10 +57,9 @@ contract StakeVault is Ownable {
     event Withdraw(uint256, uint256, address);
     event Claim(uint256, uint256, address);
 
-    constructor() {
-        offerPeriod = 604800; // default is 7 days
-        address defaultToken = 0xeb8f08a975Ab53E34D8a0330E0D34de942C95926; // USDC on the Rinkeby testnet
-        allowedTokenList[defaultToken] = true;
+    constructor(address _token, uint256 _offerPeriod) {
+        offerPeriod = _offerPeriod;
+        allowedTokenList[_token] = true;
     }
 
     modifier allowedToken(address _token) {

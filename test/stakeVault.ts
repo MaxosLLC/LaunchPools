@@ -7,6 +7,7 @@ import { TestToken, StakeVault } from '../types';
 
 chai.use(solidity);
 const { expect } = chai;
+const offerPeriod = 604800;
 
 describe("StakeVault Contract", () => {
   let testToken: TestToken;
@@ -19,13 +20,12 @@ describe("StakeVault Contract", () => {
   let investorB: SignerWithAddress;
   let investorC: SignerWithAddress;
 
-
   beforeEach("Contracts initial setup", async () => {
     [ owner, sponsor, investorA, investorB, investorC ] = await ethers.getSigners();
     testTokenFactory  = await ethers.getContractFactory("TestToken"); 
     stakeVaultFactory = await ethers.getContractFactory("StakeVault"); 
     testToken   = await testTokenFactory.deploy() as TestToken;
-    stakeVault  = await stakeVaultFactory.deploy() as StakeVault;
+    stakeVault  = await stakeVaultFactory.deploy(testToken.address, offerPeriod) as StakeVault;
 
     // Set default allowed token for using in the deal.
     await stakeVault.addAllowedToken(testToken.address);

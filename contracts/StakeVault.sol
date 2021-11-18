@@ -39,7 +39,8 @@ contract StakeVault is Ownable {
         DealStatus status;
     }
     
-    uint256 public offerPeriod; 
+    uint256 public offerPeriod;
+    uint256[] public dealIds; 
     enum DealStatus { NotDisplaying, Staking, Offering, Delivering, Claiming, Closed }
 
     Counters.Counter private _dealIds;
@@ -83,6 +84,7 @@ contract StakeVault is Ownable {
     ) public allowedToken(_stakingToken) {
         _dealIds.increment();
         uint256 dealId = _dealIds.current();
+        dealIds.push(dealId);
         DealInfo storage deal = dealInfo[dealId];
 
         deal.name = _name;
@@ -248,6 +250,10 @@ contract StakeVault is Ownable {
 
         return bonus;
     }
+
+    function getDealIds() public view returns(uint256[] memory) {
+        return dealIds;
+    } 
 
     function addAllowedToken(
         address _token

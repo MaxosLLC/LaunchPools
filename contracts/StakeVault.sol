@@ -143,6 +143,7 @@ contract StakeVault is Ownable {
     ) public existDeal(_dealId) {
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Only sponsor can set the price");
+        require(deal.status == DealStatus.Staking, "The deal status should be Staking.");
         deal.status = DealStatus.Offering;
         deal.dealPrice.price = _price;
         deal.dealPrice.startDate = block.timestamp;
@@ -156,6 +157,7 @@ contract StakeVault is Ownable {
     ) public existDeal(_dealId) {
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Only sponsor can set the price");
+        require(deal.status == DealStatus.Offering, "The deal status should be Offering.");
         deal.status = DealStatus.Offering;
         deal.dealPrice.updateDate = block.timestamp;
         deal.dealPrice.price = _price;

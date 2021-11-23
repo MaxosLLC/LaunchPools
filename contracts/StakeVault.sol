@@ -106,6 +106,7 @@ contract StakeVault is Ownable {
     ) public {
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender || owner() == msg.sender, "You have no permission to update deal status.");
+        require(deal.status != DealStatus.Closed, "You can not change status when the deal status is Closed.");
 
         if(_status == DealStatus.NotDisplaying) {
             require(deal.status == DealStatus.Staking && deal.stakeIds.length < 1, "Set NotDisplaying: The deal status should be Staking and should not have a staker.");
@@ -120,8 +121,6 @@ contract StakeVault is Ownable {
             }
         } else if(_status == DealStatus.Claiming) {
             require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Set Claiming: Only owner can set Claiming status when the deal status is Delivering.");
-        } else if(_status == DealStatus.Closed) {
-
         } else {
             revert("You cannot change the deal status.");
         }

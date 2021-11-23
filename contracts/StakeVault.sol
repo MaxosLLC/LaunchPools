@@ -158,7 +158,6 @@ contract StakeVault is Ownable {
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Only sponsor can set the price");
         require(deal.status == DealStatus.Offering, "The deal status should be Offering.");
-        deal.status = DealStatus.Offering;
         deal.dealPrice.updateDate = block.timestamp;
         deal.dealPrice.price = _price;
 

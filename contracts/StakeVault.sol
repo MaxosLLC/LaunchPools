@@ -103,8 +103,29 @@ contract StakeVault is Ownable {
     function updateDealStatus(
         uint256 _dealId,
         DealStatus _status
-    ) public onlyOwner {
+    ) public {
         DealInfo storage deal = dealInfo[_dealId];
+        require(deal.sponsor == msg.sender || owner() == msg.sender, "You have no permission to update deal status.");
+
+        if(_status == DealStatus.NotDisplaying) {
+            require(deal.status == DealStatus.Staking && deal.stakeIds.length < 1, "Set NotDisplaying: The deal status should be Staking and should not have a staker.");
+        } else if(_status == DealStatus.Staking) {
+            require(deal.status < DealStatus.Delivering, "Set Staking: The deal status should not be Delivering, Claiming, Closed.");
+        } else if(_status == DealStatus.Offering) {
+            require(deal.status == DealStatus.Staking, "Set Offering: The deal status should be Staking.");
+        } else if(_status == DealStatus.Delivering) {
+            require(deal.status == DealStatus.Offering, "Set Delivering: The deal status should be Offering.");
+            if(deal.sponsor == msg.sender) {
+                require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status Delivering until 7 days after post a deal price.");
+            }
+        } else if(_status == DealStatus.Claiming) {
+            require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Set Claiming: Only owner can set Claiming status when the deal status is Delivering.");
+        } else if(_status == DealStatus.Closed) {
+
+        } else {
+            revert("You cannot change the deal status.");
+        }
+        
         deal.status = _status;
     }
 
@@ -146,7 +167,7 @@ contract StakeVault is Ownable {
         uint256 _dealId,
         uint256 _amount
     ) public existDeal(_dealId) {
-        require(checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "Can't deposite in this deal");
+        require(checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "The deal status should be Staking or Offering.");
         _stakeIds.increment();
         uint256 stakeId = _stakeIds.current();
         address staker = msg.sender;
@@ -169,7 +190,7 @@ contract StakeVault is Ownable {
     ) public {
         StakeInfo storage stake = stakeInfo[_stakeId];
         uint256 _dealId = stake.dealId;
-        require(!(checkDealStatus(_dealId, DealStatus.Delivering) && checkDealStatus(_dealId, DealStatus.Claiming)), "Can't withdraw in this deal");
+        require(!(checkDealStatus(_dealId, DealStatus.Delivering) && checkDealStatus(_dealId, DealStatus.Claiming)), "The deal status should not be a Delivering or Claiming.");
         require(stake.staker == msg.sender, "Must be a staker");
         require(stake.amount > 0, "The withdraw amount is not enough.");
         DealInfo storage deal = dealInfo[_dealId];
@@ -183,7 +204,7 @@ contract StakeVault is Ownable {
     function claim(
         uint256 _dealId
     ) external {
-        require(checkDealStatus(_dealId, DealStatus.Claiming), "Can't claim from this deal");
+        require(checkDealStatus(_dealId, DealStatus.Claiming), "The deal status should be Claiming.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must be a staker");
         uint256[] memory stakeIds = deal.stakeIds;
@@ -218,6 +239,7 @@ contract StakeVault is Ownable {
     ) public {
         StakeInfo storage stake = stakeInfo[_stakeId];
         DealInfo storage deal = dealInfo[stake.dealId];
+        require(deal.status == DealStatus.Closed, "The deal status should be a Closed.");
         require(deal.sponsor == msg.sender || owner() == msg.sender, "You have no permission to send back the staked amount.");
         require(stake.amount > 0, "The withdraw amount is not enough.");
         uint256 _amount = stake.amount;

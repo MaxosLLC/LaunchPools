@@ -115,12 +115,14 @@ contract StakeVault is Ownable {
         } else if(_status == DealStatus.Offering) {
             require(deal.status == DealStatus.Staking, "Set Offering: The deal status should be Staking.");
         } else if(_status == DealStatus.Delivering) {
-            require(deal.status == DealStatus.Offering, "Set Delivering: The deal status should be Offering.");
-            if(deal.sponsor == msg.sender) {
+            if(owner() == msg.sender) 
+                require(deal.status == DealStatus.Offering, "Set Delivering: The deal status should be Offering.");
+            else 
                 require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status Delivering until 7 days after post a deal price.");
-            }
         } else if(_status == DealStatus.Claiming) {
             require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Set Claiming: Only owner can set Claiming status when the deal status is Delivering.");
+        } else if(_status == DealStatus.Closed) {
+
         } else {
             revert("You cannot change the deal status.");
         }
@@ -277,6 +279,11 @@ contract StakeVault is Ownable {
         return dealIds;
     } 
 
+    function getStakes (uint256 _dealId) public view returns(uint256 [] memory) {
+        DealInfo storage deal = dealInfo[_dealId];
+        return deal.stakeIds;
+    }
+    
     function addAllowedToken(
         address _token
     ) public onlyOwner {

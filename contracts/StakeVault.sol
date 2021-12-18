@@ -40,16 +40,17 @@ contract StakeVault is Ownable {
     }
     
     uint256 public offerPeriod;
-    uint256[] public dealIds; 
+    uint256[] private dealIds; 
     enum DealStatus { NotDisplaying, Staking, Offering, Delivering, Claiming, Closed }
 
     Counters.Counter private _dealIds;
     Counters.Counter private _stakeIds;
 
     mapping (uint256 => StakeInfo) public stakeInfo;
-    mapping (address => uint256[]) public stakesByInvestor;
     mapping (uint256 => DealInfo) public dealInfo;
     mapping (address => bool) public allowedTokenList;
+    mapping (address => uint256[]) private stakesByInvestor;
+    mapping (address => uint256[]) private dealsBySponsor;
 
     event AddDeal(uint256, address);
     event SetDealPrice(uint256, address);
@@ -85,8 +86,8 @@ contract StakeVault is Ownable {
         _dealIds.increment();
         uint256 dealId = _dealIds.current();
         dealIds.push(dealId);
+        dealsBySponsor[msg.sender].push(dealId);
         DealInfo storage deal = dealInfo[dealId];
-
         deal.name = _name;
         deal.url = _url;
         deal.startBonus = _startBonus;
@@ -208,7 +209,8 @@ contract StakeVault is Ownable {
     ) external {
         require(checkDealStatus(_dealId, DealStatus.Claiming), "The deal status should be Claiming.");
         DealInfo storage deal = dealInfo[_dealId];
-        require(deal.sponsor == msg.sender, "Must be a staker");
+        require(deal.sponsor == msg.sender, "Must be a sponsor of this deal");
+        deal.status = DealStatus.Closed;
         uint256[] memory stakeIds = deal.stakeIds;
         uint256 claimAmount;
         
@@ -230,7 +232,7 @@ contract StakeVault is Ownable {
                 }
             }
         }
-
+        
         IERC20(deal.stakingToken).transfer(msg.sender, claimAmount);
 
         emit Claim(_dealId, claimAmount, msg.sender);
@@ -282,6 +284,14 @@ contract StakeVault is Ownable {
     function getStakes (uint256 _dealId) public view returns(uint256 [] memory) {
         DealInfo storage deal = dealInfo[_dealId];
         return deal.stakeIds;
+    }
+    
+    function getInvetorStakes (address _investor) public view returns(uint256 [] memory) {
+        return stakesByInvestor[_investor];
+    }
+    
+    function getSponsorDeals (address _sponsor) public view returns(uint256 [] memory) {
+        return dealsBySponsor[_sponsor];
     }
     
     function addAllowedToken(

@@ -305,4 +305,8 @@ contract StakeVault is Ownable {
     ) public view returns(bool) {
         return allowedTokenList[_token];
     }
+
+    function currentBlockTime() public view returns (uint256) {
+        return block.timestamp;
+    }
 }

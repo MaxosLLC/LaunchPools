@@ -3,6 +3,7 @@
 .mocharc.json
 artifacts
 cache
+types
 
 # Logs
 logs

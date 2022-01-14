@@ -33,7 +33,8 @@ contract StakeVault is Ownable {
         uint256 startBonus;
         uint256 endBonus;
         uint256 preSaleAmount;
-        uint256 openSaleAmount;
+        uint256 minimumSaleAmount;
+        uint256 maximumSaleAmount;
         uint256[] stakeIds;
         DealPrice dealPrice;
         DealStatus status;
@@ -80,7 +81,8 @@ contract StakeVault is Ownable {
         uint256 _startBonus,
         uint256 _endBonus,
         uint256 _preSaleAmount,
-        uint256 _openSaleAmount,
+        uint256 _minimumSaleAmount,
+        uint256 _maximumSaleAmount,
         address _stakingToken
     ) public allowedToken(_stakingToken) {
         _dealIds.increment();
@@ -93,10 +95,11 @@ contract StakeVault is Ownable {
         deal.startBonus = _startBonus;
         deal.endBonus = _endBonus;
         deal.preSaleAmount = _preSaleAmount;
-        deal.openSaleAmount = _openSaleAmount;
+        deal.minimumSaleAmount = _minimumSaleAmount;
+        deal.maximumSaleAmount = _maximumSaleAmount;
         deal.sponsor = msg.sender;
         deal.stakingToken = _stakingToken;
-        deal.status = DealStatus.Staking;
+        updateDealStatus(dealId, DealStatus.Staking);
 
         emit AddDeal(dealId, msg.sender);
     }
@@ -116,15 +119,21 @@ contract StakeVault is Ownable {
         } else if(_status == DealStatus.Offering) {
             require(deal.status == DealStatus.Staking, "Set Offering: The deal status should be Staking.");
         } else if(_status == DealStatus.Delivering) {
-            if(owner() == msg.sender) 
-                require(deal.status == DealStatus.Offering, "Set Delivering: The deal status should be Offering.");
-            else 
-                require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status Delivering until 7 days after post a deal price.");
+            require(deal.status == DealStatus.Offering, "Set Delivering: The deal status should be Offering.");
+            
+            uint256[] memory stakeIds = deal.stakeIds;
+            uint256 stakedAmount;
+            for(uint256 i=0; i<stakeIds.length; i++) {
+                StakeInfo storage stake = stakeInfo[stakeIds[i]];
+                stakedAmount = stakedAmount.add(stake.amount);
+            }
+            require(deal.minimumSaleAmount >= stakedAmount, "Set Delivering: The staked amount should be over minimumSaleAmount.");
+
+            if(owner() != msg.sender) 
+                require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status as a Delivering until 7 days after post a deal price.");
         } else if(_status == DealStatus.Claiming) {
             require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Set Claiming: Only owner can set Claiming status when the deal status is Delivering.");
-        } else if(_status == DealStatus.Closed) {
-
-        } else {
+        } else if(_status != DealStatus.Closed) {
             revert("You cannot change the deal status.");
         }
         
@@ -145,8 +154,7 @@ contract StakeVault is Ownable {
     ) public existDeal(_dealId) {
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Only sponsor can set the price");
-        require(deal.status == DealStatus.Staking, "The deal status should be Staking.");
-        deal.status = DealStatus.Offering;
+        updateDealStatus(_dealId, DealStatus.Offering);
         deal.dealPrice.price = _price;
         deal.dealPrice.startDate = block.timestamp;
 
@@ -210,7 +218,8 @@ contract StakeVault is Ownable {
         require(checkDealStatus(_dealId, DealStatus.Claiming), "The deal status should be Claiming.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must be a sponsor of this deal");
-        deal.status = DealStatus.Closed;
+        updateDealStatus(_dealId, DealStatus.Closed);
+        
         uint256[] memory stakeIds = deal.stakeIds;
         uint256 claimAmount;
         
@@ -221,11 +230,11 @@ contract StakeVault is Ownable {
                 claimAmount = claimAmount.add(stake.amount);
                 stake.isClaimed = true;
 
-                if(claimAmount > deal.preSaleAmount) {
-                    uint256 diffAmount = claimAmount.sub(deal.preSaleAmount);
+                if(claimAmount > deal.maximumSaleAmount) {
+                    uint256 diffAmount = claimAmount.sub(deal.maximumSaleAmount);
                     stake.restAmount = diffAmount;
                     stake.amount = stake.amount.sub(diffAmount);
-                    claimAmount = deal.preSaleAmount;
+                    claimAmount = deal.maximumSaleAmount;
                     break;
                 } else {
                     stake.amount = 0;
@@ -259,7 +268,7 @@ contract StakeVault is Ownable {
         uint256[] memory stakeIds = deal.stakeIds;
         uint256 stakedAmount; // total staked amount in the deal before _staker stake 
         uint256 bonus; // the average bonus of the _staker after staking
-        uint256 _amount = stake.amount.sub(stake.restAmount); // staked amount while in the presale
+        uint256 _amount = stake.amount; // staked amount while in the presale
         
         for(uint256 i=stakeIds[0]; i<_stakeId; i++) {
             StakeInfo memory _stake = stakeInfo[i];

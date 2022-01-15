@@ -59,6 +59,8 @@ describe("StakeVault Contract", () => {
         100,
         0,
         10000,
+        1000,
+        100000,
         0,
         testToken.address
       );

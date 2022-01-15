@@ -33,8 +33,8 @@ contract StakeVault is Ownable {
         uint256 startBonus;
         uint256 endBonus;
         uint256 preSaleAmount;
-        uint256 minimumSaleAmount;
-        uint256 maximumSaleAmount;
+        uint256 minSaleAmount;
+        uint256 maxSaleAmount;
         uint256[] stakeIds;
         DealPrice dealPrice;
         DealStatus status;
@@ -81,8 +81,8 @@ contract StakeVault is Ownable {
         uint256 _startBonus,
         uint256 _endBonus,
         uint256 _preSaleAmount,
-        uint256 _minimumSaleAmount,
-        uint256 _maximumSaleAmount,
+        uint256 _minSaleAmount,
+        uint256 _maxSaleAmount,
         address _stakingToken
     ) public allowedToken(_stakingToken) {
         _dealIds.increment();
@@ -95,8 +95,8 @@ contract StakeVault is Ownable {
         deal.startBonus = _startBonus;
         deal.endBonus = _endBonus;
         deal.preSaleAmount = _preSaleAmount;
-        deal.minimumSaleAmount = _minimumSaleAmount;
-        deal.maximumSaleAmount = _maximumSaleAmount;
+        deal.minSaleAmount = _minSaleAmount;
+        deal.maxSaleAmount = _maxSaleAmount;
         deal.sponsor = msg.sender;
         deal.stakingToken = _stakingToken;
         updateDealStatus(dealId, DealStatus.Staking);
@@ -127,7 +127,7 @@ contract StakeVault is Ownable {
                 StakeInfo storage stake = stakeInfo[stakeIds[i]];
                 stakedAmount = stakedAmount.add(stake.amount);
             }
-            require(deal.minimumSaleAmount >= stakedAmount, "Set Delivering: The staked amount should be over minimumSaleAmount.");
+            require(deal.minSaleAmount >= stakedAmount, "Set Delivering: The staked amount should be over minSaleAmount.");
 
             if(owner() != msg.sender) 
                 require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status as a Delivering until 7 days after post a deal price.");
@@ -230,11 +230,11 @@ contract StakeVault is Ownable {
                 claimAmount = claimAmount.add(stake.amount);
                 stake.isClaimed = true;
 
-                if(claimAmount > deal.maximumSaleAmount) {
-                    uint256 diffAmount = claimAmount.sub(deal.maximumSaleAmount);
+                if(claimAmount > deal.maxSaleAmount) {
+                    uint256 diffAmount = claimAmount.sub(deal.maxSaleAmount);
                     stake.restAmount = diffAmount;
                     stake.amount = stake.amount.sub(diffAmount);
-                    claimAmount = deal.maximumSaleAmount;
+                    claimAmount = deal.maxSaleAmount;
                     break;
                 } else {
                     stake.amount = 0;
@@ -272,6 +272,35 @@ contract StakeVault is Ownable {
         
         for(uint256 i=stakeIds[0]; i<_stakeId; i++) {
             StakeInfo memory _stake = stakeInfo[i];
+            if(_stake.amount > 0) {
+                stakedAmount = stakedAmount.add(_stake.amount);
+            }
+        }
+
+        if(deal.preSaleAmount < stakedAmount.add(_amount.div(2))) {
+            return 0;
+        }
+
+        bonus = deal.startBonus.sub(deal.endBonus).mul(deal.preSaleAmount.sub(stakedAmount).sub(_amount.div(2))).div(deal.preSaleAmount).add(deal.endBonus);
+
+        return bonus;
+    }
+
+    function getEstimateBonus(
+        uint256 _dealId,
+        uint256 _amount
+    ) public view returns(uint256) {
+        if(_amount <= 0) {
+            return 0;
+        }
+
+        DealInfo memory deal = dealInfo[_dealId];
+        uint256[] memory stakeIds = deal.stakeIds;
+        uint256 stakedAmount; // total staked amount in the deal before _staker stake 
+        uint256 bonus; // the average bonus of the _staker after staking
+        
+        for(uint256 i=0; i<stakeIds.length; i++) {
+            StakeInfo memory _stake = stakeInfo[stakeIds[i]];
             if(_stake.amount > 0) {
                 stakedAmount = stakedAmount.add(_stake.amount);
             }

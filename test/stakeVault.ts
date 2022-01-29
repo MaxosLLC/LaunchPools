@@ -61,7 +61,6 @@ describe("StakeVault Contract", () => {
         10000,
         1000,
         100000,
-        0,
         testToken.address
       );
     });
@@ -84,8 +83,17 @@ describe("StakeVault Contract", () => {
     it('Check bonus of investors after staked', async () => {
       // The investors stake their assests
       await stakeVault.connect(investorA).deposite(1, 1000);
+      const ES_Bonus1 = await stakeVault.getEstimateBonus(1, 2500);
+      expect(ES_Bonus1).to.equal(BigNumber.from('77'));
+
       await stakeVault.connect(investorB).deposite(1, 2500);
+      const ES_Bonus2 = await stakeVault.getEstimateBonus(1, 5000);
+      expect(ES_Bonus2).to.equal(BigNumber.from('40'));
+
       await stakeVault.connect(investorC).deposite(1, 5000);
+      const ES_Bonus3 = await stakeVault.getEstimateBonus(1, 500);
+      expect(ES_Bonus3).to.equal(BigNumber.from('12'));
+      
       await stakeVault.connect(investorA).deposite(1, 500);
       
       // Getting the bonus from staked amount
@@ -93,6 +101,7 @@ describe("StakeVault Contract", () => {
       const A_Bonus2  = await stakeVault.getBonus(4);
       const B_Bonus   = await stakeVault.getBonus(2);
       const C_Bonus   = await stakeVault.getBonus(3);
+      
       
       // Checking the bonus
       expect(A_Bonus1).to.equal(BigNumber.from('95'));
@@ -134,6 +143,9 @@ describe("StakeVault Contract", () => {
       expect(A_Stake.amount).to.eq(1000);
       expect(B_Stake.amount).to.eq(2500);
 
+      // Close the deal
+      await stakeVault.connect(owner).updateDealStatus(1, 5);
+
       // SendBack the staked amount by owner and sponsor of a deal
       await stakeVault.connect(owner).sendBack(1);
       await stakeVault.connect(sponsor).sendBack(2);
@@ -151,14 +163,18 @@ describe("StakeVault Contract", () => {
 
     it('Should claim staked amount after setting deal status as a Claiming by owner', async () => {
       // The investors stake their assets
-      await stakeVault.connect(investorA).deposite(1, 1000);
+      await stakeVault.connect(investorA).deposite(1, 1500);
       await stakeVault.connect(investorB).deposite(1, 2500);
       
       // Check current staked amount
       const A_Stake  = await stakeVault.stakeInfo(1);
       const B_Stake  = await stakeVault.stakeInfo(2);
-      expect(A_Stake.amount).to.eq(1000);
+      expect(A_Stake.amount).to.eq(1500);
       expect(B_Stake.amount).to.eq(2500);
+
+      // Update deal status
+      await stakeVault.connect(owner).updateDealStatus(1, 2);
+      await stakeVault.connect(owner).updateDealStatus(1, 3);
 
       // Owner set deal status as Claiming
       await stakeVault.connect(owner).updateDealStatus(1, 4);

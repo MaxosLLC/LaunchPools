@@ -127,7 +127,7 @@ contract StakeVault is Ownable {
                 StakeInfo storage stake = stakeInfo[stakeIds[i]];
                 stakedAmount = stakedAmount.add(stake.amount);
             }
-            require(deal.minSaleAmount >= stakedAmount, "Set Delivering: The staked amount should be over minSaleAmount.");
+            require(deal.minSaleAmount <= stakedAmount, "Set Delivering: The staked amount should be over minSaleAmount.");
 
             if(owner() != msg.sender) 
                 require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status as a Delivering until 7 days after post a deal price.");
@@ -179,6 +179,7 @@ contract StakeVault is Ownable {
         uint256 _amount
     ) public existDeal(_dealId) {
         require(checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "The deal status should be Staking or Offering.");
+        require(_amount > 0, "The deposite amount is not enough.");
         _stakeIds.increment();
         uint256 stakeId = _stakeIds.current();
         address staker = msg.sender;
@@ -270,8 +271,11 @@ contract StakeVault is Ownable {
         uint256 bonus; // the average bonus of the _staker after staking
         uint256 _amount = stake.amount; // staked amount while in the presale
         
-        for(uint256 i=stakeIds[0]; i<_stakeId; i++) {
-            StakeInfo memory _stake = stakeInfo[i];
+        for(uint256 i=0; i<stakeIds.length; i++) {
+            if(_stakeId <= stakeIds[i]) {
+                break;
+            }
+            StakeInfo memory _stake = stakeInfo[stakeIds[i]];
             if(_stake.amount > 0) {
                 stakedAmount = stakedAmount.add(_stake.amount);
             }

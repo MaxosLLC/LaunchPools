@@ -54,19 +54,54 @@ describe("StakeVault Contract", () => {
   describe("Testing StakeVault Contract", async () => {
     beforeEach('Add a deal', async () => {
       await stakeVault.connect(sponsor).addDeal(
-        'Test Deal',
-        'https://google.com',
-        100,
-        0,
-        10000,
-        1000,
-        100000,
-        testToken.address
+        'Test Deal', // deal name
+        'https://google.com', // deal url
+        investorA.address, // lead investor
+        100, // start bonus
+        0, // end bonus
+        10000, // presale amount
+        1000, // minimum sale amount
+        100000, // maximum sale amount
+        testToken.address // staking token address
       );
     });
 
-    it('The status of deal should be a Staking after creating new deal', async () => {
-      expect(await stakeVault.checkDealStatus(1, 1)).to.equal(true);
+    it('The status of deal should be a NotDisplaying after creating new deal', async () => {
+      expect(await stakeVault.checkDealStatus(1, 0)).to.equal(true);
+    });
+
+    it('Update a deal', async () => {
+      await stakeVault.connect(sponsor).updateDeal(
+        1, // deal Id
+        investorB.address, // lead investor
+        50, // start bonus
+        20, // end bonus
+        10000, // presale amount
+        testToken.address // staking token price
+      );
+
+      // Update deal after staking.
+      await stakeVault.connect(investorB).deposite(1, 1000); // lead investor stake at first.
+      await expect(
+        stakeVault.connect(sponsor).updateDeal(
+          1,
+          investorA.address,
+          100,
+          0,
+          10000,
+          testToken.address
+        )
+      ).to.be.revertedWith("The deal should be empty.");
+    });
+
+    it('The investors stake on a deal', async () => {
+      // Check a deal when other investor stake, not a lead investor
+      await expect(stakeVault.connect(investorB).deposite(1, 1000)).to.be.revertedWith("The lead investor should stake at first.");
+
+      await stakeVault.connect(investorA).deposite(1, 1000); // lead investor stake at first.
+      await stakeVault.connect(investorB).deposite(1, 2000); // Other one can stake.
+
+      expect(await stakeVault.checkDealStatus(1, 1)).to.equal(true); // The deal status should be Staking after stake.
     });
 
     it('Set price to the deal', async () => {

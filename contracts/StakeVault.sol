@@ -25,6 +25,11 @@ contract StakeVault is Ownable {
         uint256 updateDate;
     }
 
+    struct LeadInvestor {
+        address investor;
+        bool isStaked;
+    }
+
     struct DealInfo {
         string name;
         string url;
@@ -36,6 +41,7 @@ contract StakeVault is Ownable {
         uint256 minSaleAmount;
         uint256 maxSaleAmount;
         uint256[] stakeIds;
+        LeadInvestor lead;
         DealPrice dealPrice;
         DealStatus status;
     }
@@ -54,6 +60,7 @@ contract StakeVault is Ownable {
     mapping (address => uint256[]) private dealsBySponsor;
 
     event AddDeal(uint256, address);
+    event UpdateDeal(uint256, address);
     event SetDealPrice(uint256, address);
     event UpdateDealPrice(uint256, address);
     event Deposit(uint256, uint256, address);
@@ -78,6 +85,7 @@ contract StakeVault is Ownable {
     function addDeal(
         string memory _name,
         string memory _url,
+        address _leadInvestor,
         uint256 _startBonus,
         uint256 _endBonus,
         uint256 _preSaleAmount,
@@ -92,6 +100,7 @@ contract StakeVault is Ownable {
         DealInfo storage deal = dealInfo[dealId];
         deal.name = _name;
         deal.url = _url;
+        deal.lead.investor = _leadInvestor;
         deal.startBonus = _startBonus;
         deal.endBonus = _endBonus;
         deal.preSaleAmount = _preSaleAmount;
@@ -99,9 +108,30 @@ contract StakeVault is Ownable {
         deal.maxSaleAmount = _maxSaleAmount;
         deal.sponsor = msg.sender;
         deal.stakingToken = _stakingToken;
-        updateDealStatus(dealId, DealStatus.Staking);
+        updateDealStatus(dealId, DealStatus.NotDisplaying);
 
         emit AddDeal(dealId, msg.sender);
+    }
+
+    function updateDeal(
+        uint256 _dealId,
+        address _leadInvestor,
+        uint256 _startBonus,
+        uint256 _endBonus,
+        uint256 _preSaleAmount,
+        address _stakingToken
+    ) public allowedToken(_stakingToken) {
+        DealInfo storage deal = dealInfo[_dealId];
+        require(deal.sponsor == msg.sender, "Only sponsor can update the deal.");
+        require(deal.status == DealStatus.NotDisplaying || deal.status == DealStatus.Staking, "The deal status should be NotDisplaying or Staking.");
+        require(deal.stakeIds.length < 1, "The deal should be empty.");
+        deal.lead.investor = _leadInvestor;
+        deal.startBonus = _startBonus;
+        deal.endBonus = _endBonus;
+        deal.preSaleAmount = _preSaleAmount;
+        deal.stakingToken = _stakingToken;
+
+        emit UpdateDeal(_dealId, msg.sender);
     }
 
     function updateDealStatus(
@@ -113,11 +143,11 @@ contract StakeVault is Ownable {
         require(deal.status != DealStatus.Closed, "You can not change status when the deal status is Closed.");
 
         if(_status == DealStatus.NotDisplaying) {
-            require(deal.status == DealStatus.Staking && deal.stakeIds.length < 1, "Set NotDisplaying: The deal status should be Staking and should not have a staker.");
+            require(deal.stakeIds.length < 1, "Set NotDisplaying: The deal should not have a stake.");
         } else if(_status == DealStatus.Staking) {
             require(deal.status < DealStatus.Delivering, "Set Staking: The deal status should not be Delivering, Claiming, Closed.");
         } else if(_status == DealStatus.Offering) {
-            require(deal.status == DealStatus.Staking, "Set Offering: The deal status should be Staking.");
+            require(deal.status < DealStatus.Offering, "Set Offering: The deal status should be Staking.");
         } else if(_status == DealStatus.Delivering) {
             require(deal.status == DealStatus.Offering, "Set Delivering: The deal status should be Offering.");
             
@@ -129,8 +159,9 @@ contract StakeVault is Ownable {
             }
             require(deal.minSaleAmount <= stakedAmount, "Set Delivering: The staked amount should be over minSaleAmount.");
 
-            if(owner() != msg.sender) 
+            if(owner() != msg.sender) {
                 require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status as a Delivering until 7 days after post a deal price.");
+            }
         } else if(_status == DealStatus.Claiming) {
             require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Set Claiming: Only owner can set Claiming status when the deal status is Delivering.");
         } else if(_status != DealStatus.Closed) {
@@ -178,20 +209,30 @@ contract StakeVault is Ownable {
         uint256 _dealId,
         uint256 _amount
     ) public existDeal(_dealId) {
-        require(checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "The deal status should be Staking or Offering.");
+        require(checkDealStatus(_dealId, DealStatus.NotDisplaying) || checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "The deal status should be NotDisplaying, Staking or Offering.");
         require(_amount > 0, "The deposite amount is not enough.");
+        DealInfo storage deal = dealInfo[_dealId];
+        require(deal.lead.investor != address(0), "The deal should have a lead investor.");
+        if(deal.lead.investor != msg.sender) {
+            require(deal.lead.isStaked, "The lead investor should stake at first.");
+        } else {
+            if(!deal.lead.isStaked) {
+                deal.lead.isStaked = true;
+            }
+        }
         _stakeIds.increment();
         uint256 stakeId = _stakeIds.current();
         address staker = msg.sender;
-        DealInfo storage deal = dealInfo[_dealId];
         StakeInfo storage stake = stakeInfo[stakeId];
         stake.id = stakeId;
         stake.dealId = _dealId;
         stake.staker = staker;
         stake.amount = _amount;
         stakesByInvestor[staker].push(stakeId);
+        if(deal.stakeIds.length < 1) {
+            deal.status = DealStatus.Staking;
+        }
         deal.stakeIds.push(stakeId);
-
         IERC20(deal.stakingToken).transferFrom(staker, address(this), _amount);
 
         emit Deposit(_dealId, _amount, staker);

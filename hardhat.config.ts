@@ -15,6 +15,8 @@ export default {
   defaultNetwork: 'hardhat',
   networks: {
     hardhat: {
+      allowUnlimitedContractSize: true,
+      blockGasLimit: 0x1fffffffffffff,
       chainId: 1337
     }
   },

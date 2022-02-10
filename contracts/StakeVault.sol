@@ -25,6 +25,11 @@ contract StakeVault is Ownable {
         uint256 updateDate;
     }
 
+    struct LeadInvestor {
+        address investor;
+        bool isStaked;
+    }
+
     struct DealInfo {
         string name;
         string url;
@@ -33,8 +38,10 @@ contract StakeVault is Ownable {
         uint256 startBonus;
         uint256 endBonus;
         uint256 preSaleAmount;
-        uint256 openSaleAmount;
+        uint256 minSaleAmount;
+        uint256 maxSaleAmount;
         uint256[] stakeIds;
+        LeadInvestor lead;
         DealPrice dealPrice;
         DealStatus status;
     }
@@ -42,6 +49,7 @@ contract StakeVault is Ownable {
     uint256 public offerPeriod;
     uint256[] private dealIds; 
     enum DealStatus { NotDisplaying, Staking, Offering, Delivering, Claiming, Closed }
+    enum DisplayStatus { All, List, Item }
 
     Counters.Counter private _dealIds;
     Counters.Counter private _stakeIds;
@@ -53,6 +61,7 @@ contract StakeVault is Ownable {
     mapping (address => uint256[]) private dealsBySponsor;
 
     event AddDeal(uint256, address);
+    event UpdateDeal(uint256, address);
     event SetDealPrice(uint256, address);
     event UpdateDealPrice(uint256, address);
     event Deposit(uint256, uint256, address);
@@ -77,10 +86,12 @@ contract StakeVault is Ownable {
     function addDeal(
         string memory _name,
         string memory _url,
+        address _leadInvestor,
         uint256 _startBonus,
         uint256 _endBonus,
         uint256 _preSaleAmount,
-        uint256 _openSaleAmount,
+        uint256 _minSaleAmount,
+        uint256 _maxSaleAmount,
         address _stakingToken
     ) public allowedToken(_stakingToken) {
         _dealIds.increment();
@@ -90,15 +101,38 @@ contract StakeVault is Ownable {
         DealInfo storage deal = dealInfo[dealId];
         deal.name = _name;
         deal.url = _url;
+        deal.lead.investor = _leadInvestor;
         deal.startBonus = _startBonus;
         deal.endBonus = _endBonus;
         deal.preSaleAmount = _preSaleAmount;
-        deal.openSaleAmount = _openSaleAmount;
+        deal.minSaleAmount = _minSaleAmount;
+        deal.maxSaleAmount = _maxSaleAmount;
         deal.sponsor = msg.sender;
         deal.stakingToken = _stakingToken;
-        deal.status = DealStatus.Staking;
+        updateDealStatus(dealId, DealStatus.NotDisplaying);
 
         emit AddDeal(dealId, msg.sender);
+    }
+
+    function updateDeal(
+        uint256 _dealId,
+        address _leadInvestor,
+        uint256 _startBonus,
+        uint256 _endBonus,
+        uint256 _preSaleAmount,
+        address _stakingToken
+    ) public allowedToken(_stakingToken) {
+        DealInfo storage deal = dealInfo[_dealId];
+        require(deal.sponsor == msg.sender, "Only sponsor can update the deal.");
+        require(deal.status == DealStatus.NotDisplaying || deal.status == DealStatus.Staking, "The deal status should be NotDisplaying or Staking.");
+        require(deal.stakeIds.length < 1, "The deal should be empty.");
+        deal.lead.investor = _leadInvestor;
+        deal.startBonus = _startBonus;
+        deal.endBonus = _endBonus;
+        deal.preSaleAmount = _preSaleAmount;
+        deal.stakingToken = _stakingToken;
+
+        emit UpdateDeal(_dealId, msg.sender);
     }
 
     function updateDealStatus(
@@ -110,21 +144,28 @@ contract StakeVault is Ownable {
         require(deal.status != DealStatus.Closed, "You can not change status when the deal status is Closed.");
 
         if(_status == DealStatus.NotDisplaying) {
-            require(deal.status == DealStatus.Staking && deal.stakeIds.length < 1, "Set NotDisplaying: The deal status should be Staking and should not have a staker.");
+            require(deal.stakeIds.length < 1, "Set NotDisplaying: The deal should not have a stake.");
         } else if(_status == DealStatus.Staking) {
             require(deal.status < DealStatus.Delivering, "Set Staking: The deal status should not be Delivering, Claiming, Closed.");
         } else if(_status == DealStatus.Offering) {
-            require(deal.status == DealStatus.Staking, "Set Offering: The deal status should be Staking.");
+            require(deal.status < DealStatus.Offering, "Set Offering: The deal status should be Staking.");
         } else if(_status == DealStatus.Delivering) {
-            if(owner() == msg.sender) 
-                require(deal.status == DealStatus.Offering, "Set Delivering: The deal status should be Offering.");
-            else 
-                require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status Delivering until 7 days after post a deal price.");
+            require(deal.status == DealStatus.Offering, "Set Delivering: The deal status should be Offering.");
+            
+            uint256[] memory stakeIds = deal.stakeIds;
+            uint256 stakedAmount;
+            for(uint256 i=0; i<stakeIds.length; i++) {
+                StakeInfo storage stake = stakeInfo[stakeIds[i]];
+                stakedAmount = stakedAmount.add(stake.amount);
+            }
+            require(deal.minSaleAmount <= stakedAmount, "Set Delivering: The staked amount should be over minSaleAmount.");
+
+            if(owner() != msg.sender) {
+                require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status as a Delivering until 7 days after post a deal price.");
+            }
         } else if(_status == DealStatus.Claiming) {
             require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Set Claiming: Only owner can set Claiming status when the deal status is Delivering.");
-        } else if(_status == DealStatus.Closed) {
-
-        } else {
+        } else if(_status != DealStatus.Closed) {
             revert("You cannot change the deal status.");
         }
         
@@ -145,8 +186,7 @@ contract StakeVault is Ownable {
     ) public existDeal(_dealId) {
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Only sponsor can set the price");
-        require(deal.status == DealStatus.Staking, "The deal status should be Staking.");
-        deal.status = DealStatus.Offering;
+        updateDealStatus(_dealId, DealStatus.Offering);
         deal.dealPrice.price = _price;
         deal.dealPrice.startDate = block.timestamp;
 
@@ -170,19 +210,30 @@ contract StakeVault is Ownable {
         uint256 _dealId,
         uint256 _amount
     ) public existDeal(_dealId) {
-        require(checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "The deal status should be Staking or Offering.");
+        require(checkDealStatus(_dealId, DealStatus.NotDisplaying) || checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "The deal status should be NotDisplaying, Staking or Offering.");
+        require(_amount > 0, "The deposite amount is not enough.");
+        DealInfo storage deal = dealInfo[_dealId];
+        require(deal.lead.investor != address(0), "The deal should have a lead investor.");
+        if(deal.lead.investor != msg.sender) {
+            require(deal.lead.isStaked, "The lead investor should stake at first.");
+        } else {
+            if(!deal.lead.isStaked) {
+                deal.lead.isStaked = true;
+            }
+        }
         _stakeIds.increment();
         uint256 stakeId = _stakeIds.current();
         address staker = msg.sender;
-        DealInfo storage deal = dealInfo[_dealId];
         StakeInfo storage stake = stakeInfo[stakeId];
         stake.id = stakeId;
         stake.dealId = _dealId;
         stake.staker = staker;
         stake.amount = _amount;
         stakesByInvestor[staker].push(stakeId);
+        if(deal.stakeIds.length < 1) {
+            deal.status = DealStatus.Staking;
+        }
         deal.stakeIds.push(stakeId);
-
         IERC20(deal.stakingToken).transferFrom(staker, address(this), _amount);
 
         emit Deposit(_dealId, _amount, staker);
@@ -210,7 +261,8 @@ contract StakeVault is Ownable {
         require(checkDealStatus(_dealId, DealStatus.Claiming), "The deal status should be Claiming.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must be a sponsor of this deal");
-        deal.status = DealStatus.Closed;
+        updateDealStatus(_dealId, DealStatus.Closed);
+        
         uint256[] memory stakeIds = deal.stakeIds;
         uint256 claimAmount;
         
@@ -221,11 +273,11 @@ contract StakeVault is Ownable {
                 claimAmount = claimAmount.add(stake.amount);
                 stake.isClaimed = true;
 
-                if(claimAmount > deal.preSaleAmount) {
-                    uint256 diffAmount = claimAmount.sub(deal.preSaleAmount);
+                if(claimAmount > deal.maxSaleAmount) {
+                    uint256 diffAmount = claimAmount.sub(deal.maxSaleAmount);
                     stake.restAmount = diffAmount;
                     stake.amount = stake.amount.sub(diffAmount);
-                    claimAmount = deal.preSaleAmount;
+                    claimAmount = deal.maxSaleAmount;
                     break;
                 } else {
                     stake.amount = 0;
@@ -259,17 +311,24 @@ contract StakeVault is Ownable {
         uint256[] memory stakeIds = deal.stakeIds;
         uint256 stakedAmount; // total staked amount in the deal before _staker stake 
         uint256 bonus; // the average bonus of the _staker after staking
-        uint256 _amount = stake.amount.sub(stake.restAmount); // staked amount while in the presale
+        uint256 _amount = stake.amount; // staked amount while in the presale
         
-        for(uint256 i=stakeIds[0]; i<_stakeId; i++) {
-            StakeInfo memory _stake = stakeInfo[i];
+        for(uint256 i=0; i<stakeIds.length; i++) {
+            if(_stakeId <= stakeIds[i]) {
+                break;
+            }
+            StakeInfo memory _stake = stakeInfo[stakeIds[i]];
             if(_stake.amount > 0) {
                 stakedAmount = stakedAmount.add(_stake.amount);
             }
         }
 
-        if(deal.preSaleAmount < stakedAmount.add(_amount.div(2))) {
+        if(deal.preSaleAmount < stakedAmount) {
             return 0;
+        }
+
+        if(deal.preSaleAmount < stakedAmount.add(_amount)) {
+            _amount = deal.preSaleAmount.sub(stakedAmount);
         }
 
         bonus = deal.startBonus.sub(deal.endBonus).mul(deal.preSaleAmount.sub(stakedAmount).sub(_amount.div(2))).div(deal.preSaleAmount).add(deal.endBonus);
@@ -277,8 +336,68 @@ contract StakeVault is Ownable {
         return bonus;
     }
 
-    function getDealIds() public view returns(uint256[] memory) {
-        return dealIds;
+    function getEstimateBonus(
+        uint256 _dealId,
+        uint256 _amount
+    ) public view returns(uint256) {
+        if(_amount <= 0) {
+            return 0;
+        }
+
+        DealInfo memory deal = dealInfo[_dealId];
+        uint256[] memory stakeIds = deal.stakeIds;
+        uint256 stakedAmount; // total staked amount in the deal before _staker stake 
+        uint256 bonus; // the average bonus of the _staker after staking
+        uint256 amount = _amount; // estimate amount
+        
+        for(uint256 i=0; i<stakeIds.length; i++) {
+            StakeInfo memory _stake = stakeInfo[stakeIds[i]];
+            if(_stake.amount > 0) {
+                stakedAmount = stakedAmount.add(_stake.amount);
+            }
+        }
+
+        if(deal.preSaleAmount < stakedAmount) {
+            return 0;
+        }
+
+        if(deal.preSaleAmount < stakedAmount.add(amount)) {
+            amount = deal.preSaleAmount.sub(stakedAmount);
+        }
+
+        bonus = deal.startBonus.sub(deal.endBonus).mul(deal.preSaleAmount.sub(stakedAmount).sub(amount.div(2))).div(deal.preSaleAmount).add(deal.endBonus);
+
+        return bonus;
+    }
+
+    function getDealIds(DisplayStatus _displayStatus, DealStatus _dealStatus) public view returns(uint256[] memory) {
+        uint256[] memory filterDealIds = new uint256[](dealIds.length);
+        uint256 index = 0;
+        
+        if(_displayStatus == DisplayStatus.All) {
+            return dealIds;
+        } else {
+            for(uint256 id=0; id<dealIds.length; id++) {
+                DealInfo storage deal = dealInfo[id];
+                if(_displayStatus == DisplayStatus.List) {
+                    if(deal.status != DealStatus.NotDisplaying && deal.status != DealStatus.Closed) {
+                        filterDealIds[index] = id;
+                        index ++;
+                    } 
+                } else if(_displayStatus == DisplayStatus.Item) {
+                    if(deal.status == _dealStatus) {
+                        filterDealIds[index] = id;
+                        index ++;
+                    } 
+                }
+            }
+        }
+
+        uint256[] memory tmp = new uint256[](index);
+        for(uint256 i=0; i<index; i++) {
+            tmp[i] = filterDealIds[i];
+        }
+        return tmp;
     } 
 
     function getStakes (uint256 _dealId) public view returns(uint256 [] memory) {

@@ -129,7 +129,7 @@ describe("StakeVault Contract", () => {
       const ES_Bonus3 = await stakeVault.getEstimateBonus(1, 500);
       expect(ES_Bonus3).to.equal(BigNumber.from('12'));
       
-      await stakeVault.connect(investorA).deposite(1, 500);
+      await stakeVault.connect(investorA).deposite(1, 5000);
       
       // Getting the bonus from staked amount
       const A_Bonus1  = await stakeVault.getBonus(1);
@@ -137,10 +137,9 @@ describe("StakeVault Contract", () => {
       const B_Bonus   = await stakeVault.getBonus(2);
       const C_Bonus   = await stakeVault.getBonus(3);
       
-      
       // Checking the bonus
       expect(A_Bonus1).to.equal(BigNumber.from('95'));
-      expect(A_Bonus2).to.equal(BigNumber.from('12'));
+      expect(A_Bonus2).to.equal(BigNumber.from('7'));
       expect(B_Bonus).to.equal(BigNumber.from('77'));
       expect(C_Bonus).to.equal(BigNumber.from('40'));
     });
@@ -224,5 +223,40 @@ describe("StakeVault Contract", () => {
       expect(A_Balance.amount).to.eq(0);
       expect(B_Balance.amount).to.eq(0);
     });
+
+    it('Check getting deal ids', async () => {
+      await stakeVault.connect(sponsor).addDeal(
+        'Second Deal', // deal name
+        'https://google.com', // deal url
+        investorA.address, // lead investor
+        100, // start bonus
+        0, // end bonus
+        10000, // presale amount
+        1000, // minimum sale amount
+        100000, // maximum sale amount
+        testToken.address // staking token address
+      );
+      await stakeVault.connect(sponsor).addDeal(
+        'Third Deal', // deal name
+        'https://google.com', // deal url
+        investorA.address, // lead investor
+        100, // start bonus
+        0, // end bonus
+        10000, // presale amount
+        1000, // minimum sale amount
+        100000, // maximum sale amount
+        testToken.address // staking token address
+      );
+
+      await stakeVault.connect(investorA).deposite(1, 1500);
+      let dealIds = await stakeVault.getDealIds(0, 0);  // Get All Deal Ids
+      expect(dealIds.length).to.eq(3);
+      dealIds = await stakeVault.getDealIds(1, 0); // Get Deal Ids that has not NotDisplaying & Closed status
+      expect(dealIds.length).to.eq(1);
+      dealIds = await stakeVault.getDealIds(2, 0); // Get Deal Ids that has NotDisplaying status
+      expect(dealIds.length).to.eq(2);
+      dealIds = await stakeVault.getDealIds(2, 1); // Get Deal Ids that has Staking status
+      expect(dealIds.length).to.eq(1);
+    })
   });
 });

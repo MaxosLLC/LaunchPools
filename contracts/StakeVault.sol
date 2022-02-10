@@ -49,6 +49,7 @@ contract StakeVault is Ownable {
     uint256 public offerPeriod;
     uint256[] private dealIds; 
     enum DealStatus { NotDisplaying, Staking, Offering, Delivering, Claiming, Closed }
+    enum DisplayStatus { All, List, Item }
 
     Counters.Counter private _dealIds;
     Counters.Counter private _stakeIds;
@@ -322,8 +323,12 @@ contract StakeVault is Ownable {
             }
         }
 
-        if(deal.preSaleAmount < stakedAmount.add(_amount.div(2))) {
+        if(deal.preSaleAmount < stakedAmount) {
             return 0;
+        }
+
+        if(deal.preSaleAmount < stakedAmount.add(_amount)) {
+            _amount = deal.preSaleAmount.sub(stakedAmount);
         }
 
         bonus = deal.startBonus.sub(deal.endBonus).mul(deal.preSaleAmount.sub(stakedAmount).sub(_amount.div(2))).div(deal.preSaleAmount).add(deal.endBonus);
@@ -360,8 +365,34 @@ contract StakeVault is Ownable {
         return bonus;
     }
 
-    function getDealIds() public view returns(uint256[] memory) {
-        return dealIds;
+    function getDealIds(DisplayStatus _displayStatus, DealStatus _dealStatus) public view returns(uint256[] memory) {
+        uint256[] memory filterDealIds = new uint256[](dealIds.length);
+        uint256 index = 0;
+        
+        if(_displayStatus == DisplayStatus.All) {
+            return dealIds;
+        } else {
+            for(uint256 id=0; id<dealIds.length; id++) {
+                DealInfo storage deal = dealInfo[id];
+                if(_displayStatus == DisplayStatus.List) {
+                    if(deal.status != DealStatus.NotDisplaying && deal.status != DealStatus.Closed) {
+                        filterDealIds[index] = id;
+                        index ++;
+                    } 
+                } else if(_displayStatus == DisplayStatus.Item) {
+                    if(deal.status == _dealStatus) {
+                        filterDealIds[index] = id;
+                        index ++;
+                    } 
+                }
+            }
+        }
+
+        uint256[] memory tmp = new uint256[](index);
+        for(uint256 i=0; i<index; i++) {
+            tmp[i] = filterDealIds[i];
+        }
+        return tmp;
     } 
 
     function getStakes (uint256 _dealId) public view returns(uint256 [] memory) {

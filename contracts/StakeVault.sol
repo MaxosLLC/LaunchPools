@@ -348,6 +348,7 @@ contract StakeVault is Ownable {
         uint256[] memory stakeIds = deal.stakeIds;
         uint256 stakedAmount; // total staked amount in the deal before _staker stake 
         uint256 bonus; // the average bonus of the _staker after staking
+        uint256 amount = _amount; // estimate amount
         
         for(uint256 i=0; i<stakeIds.length; i++) {
             StakeInfo memory _stake = stakeInfo[stakeIds[i]];
@@ -356,11 +357,15 @@ contract StakeVault is Ownable {
             }
         }
 
-        if(deal.preSaleAmount < stakedAmount.add(_amount.div(2))) {
+        if(deal.preSaleAmount < stakedAmount) {
             return 0;
         }
 
-        bonus = deal.startBonus.sub(deal.endBonus).mul(deal.preSaleAmount.sub(stakedAmount).sub(_amount.div(2))).div(deal.preSaleAmount).add(deal.endBonus);
+        if(deal.preSaleAmount < stakedAmount.add(amount)) {
+            amount = deal.preSaleAmount.sub(stakedAmount);
+        }
+
+        bonus = deal.startBonus.sub(deal.endBonus).mul(deal.preSaleAmount.sub(stakedAmount).sub(amount.div(2))).div(deal.preSaleAmount).add(deal.endBonus);
 
         return bonus;
     }

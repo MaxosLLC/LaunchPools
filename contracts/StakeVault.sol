@@ -109,7 +109,12 @@ contract StakeVault is Ownable {
         deal.maxSaleAmount = _maxSaleAmount;
         deal.sponsor = msg.sender;
         deal.stakingToken = _stakingToken;
-        updateDealStatus(dealId, DealStatus.NotDisplaying);
+
+        if(_leadInvestor != address(0)) {
+            deal.status = DealStatus.NotDisplaying;
+        } else {
+            deal.status = DealStatus.Staking;
+        }
 
         emit AddDeal(dealId, msg.sender);
     }
@@ -131,6 +136,16 @@ contract StakeVault is Ownable {
         deal.endBonus = _endBonus;
         deal.preSaleAmount = _preSaleAmount;
         deal.stakingToken = _stakingToken;
+
+        if(_leadInvestor != address(0)) {
+            if(deal.status != DealStatus.NotDisplaying) {
+                deal.status = DealStatus.NotDisplaying;
+            }
+        } else {
+            if(deal.status != DealStatus.Staking) {
+                deal.status = DealStatus.Staking;
+            }
+        }
 
         emit UpdateDeal(_dealId, msg.sender);
     }
@@ -186,9 +201,9 @@ contract StakeVault is Ownable {
     ) public existDeal(_dealId) {
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Only sponsor can set the price");
-        updateDealStatus(_dealId, DealStatus.Offering);
         deal.dealPrice.price = _price;
         deal.dealPrice.startDate = block.timestamp;
+        deal.status = DealStatus.Offering;
 
         emit SetDealPrice(_dealId, msg.sender);
     }
@@ -213,14 +228,20 @@ contract StakeVault is Ownable {
         require(checkDealStatus(_dealId, DealStatus.NotDisplaying) || checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "The deal status should be NotDisplaying, Staking or Offering.");
         require(_amount > 0, "The deposite amount is not enough.");
         DealInfo storage deal = dealInfo[_dealId];
-        require(deal.lead.investor != address(0), "The deal should have a lead investor.");
-        if(deal.lead.investor != msg.sender) {
-            require(deal.lead.isStaked, "The lead investor should stake at first.");
-        } else {
-            if(!deal.lead.isStaked) {
-                deal.lead.isStaked = true;
+
+        if(deal.lead.investor != address(0)) {
+            if(deal.lead.investor != msg.sender) {
+                require(deal.lead.isStaked, "The lead investor should stake at first.");
+            } else {
+                if(!deal.lead.isStaked) {
+                    deal.lead.isStaked = true;
+                }
+            }
+            if(deal.stakeIds.length < 1) {
+                deal.status = DealStatus.Staking;
             }
         }
+
         _stakeIds.increment();
         uint256 stakeId = _stakeIds.current();
         address staker = msg.sender;
@@ -230,9 +251,6 @@ contract StakeVault is Ownable {
         stake.staker = staker;
         stake.amount = _amount;
         stakesByInvestor[staker].push(stakeId);
-        if(deal.stakeIds.length < 1) {
-            deal.status = DealStatus.Staking;
-        }
         deal.stakeIds.push(stakeId);
         IERC20(deal.stakingToken).transferFrom(staker, address(this), _amount);
 
@@ -261,7 +279,7 @@ contract StakeVault is Ownable {
         require(checkDealStatus(_dealId, DealStatus.Claiming), "The deal status should be Claiming.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must be a sponsor of this deal");
-        updateDealStatus(_dealId, DealStatus.Closed);
+        deal.status = DealStatus.Closed;
         
         uint256[] memory stakeIds = deal.stakeIds;
         uint256 claimAmount;

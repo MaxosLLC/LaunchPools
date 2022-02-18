@@ -9,7 +9,7 @@ chai.use(solidity);
 const { expect } = chai;
 const offerPeriod = 604800;
 
-describe("StakeVault Contract", () => {
+describe("2. Stake Test", () => {
   let testToken: TestToken;
   let stakeVault: StakeVault;
   let stakeVaultFactory: ContractFactory;
@@ -51,7 +51,7 @@ describe("StakeVault Contract", () => {
     });
   });
 
-  describe("Testing StakeVault Contract", async () => {
+  describe("Test stakes event in a deal", async () => {
     beforeEach('Add a deal', async () => {
       await stakeVault.connect(sponsor).addDeal(
         'Test Deal', // deal name
@@ -66,34 +66,6 @@ describe("StakeVault Contract", () => {
       );
     });
 
-    it('The status of deal should be a NotDisplaying after creating new deal', async () => {
-      expect(await stakeVault.checkDealStatus(1, 0)).to.equal(true);
-    });
-
-    it('Update a deal', async () => {
-      await stakeVault.connect(sponsor).updateDeal(
-        1, // deal Id
-        investorB.address, // lead investor
-        50, // start bonus
-        20, // end bonus
-        10000, // presale amount
-        testToken.address // staking token price
-      );
-
-      // Update deal after staking.
-      await stakeVault.connect(investorB).deposite(1, 1000); // lead investor stake at first.
-      await expect(
-        stakeVault.connect(sponsor).updateDeal(
-          1,
-          investorA.address,
-          100,
-          0,
-          10000,
-          testToken.address
-        )
-      ).to.be.revertedWith("The deal should be empty.");
-    });
-
     it('The investors stake on a deal', async () => {
       // Check a deal when other investor stake, not a lead investor
       await expect(stakeVault.connect(investorB).deposite(1, 1000)).to.be.revertedWith("The lead investor should stake at first.");
@@ -102,17 +74,6 @@ describe("StakeVault Contract", () => {
       await stakeVault.connect(investorB).deposite(1, 2000); // Other one can stake.
 
       expect(await stakeVault.checkDealStatus(1, 1)).to.equal(true); // The deal status should be Staking after stake.
-    });
-
-    it('Set price to the deal', async () => {
-      await stakeVault.connect(sponsor).setDealPrice(1, 100);
-
-      // The deal status should be Offering after setting price
-      expect(await stakeVault.checkDealStatus(1, 2)).to.equal(true);
-
-      // Checking the price of deal
-      const deal = await stakeVault.dealInfo(1);
-      expect(BigNumber.from(deal.dealPrice.price).toNumber()).to.eq(100);
     });
 
     it('Check bonus of investors after staked', async () => {
@@ -223,40 +184,5 @@ describe("StakeVault Contract", () => {
       expect(A_Balance.amount).to.eq(0);
       expect(B_Balance.amount).to.eq(0);
     });
-
-    it('Check getting deal ids', async () => {
-      await stakeVault.connect(sponsor).addDeal(
-        'Second Deal', // deal name
-        'https://google.com', // deal url
-        investorA.address, // lead investor
-        100, // start bonus
-        0, // end bonus
-        10000, // presale amount
-        1000, // minimum sale amount
-        100000, // maximum sale amount
-        testToken.address // staking token address
-      );
-      await stakeVault.connect(sponsor).addDeal(
-        'Third Deal', // deal name
-        'https://google.com', // deal url
-        investorA.address, // lead investor
-        100, // start bonus
-        0, // end bonus
-        10000, // presale amount
-        1000, // minimum sale amount
-        100000, // maximum sale amount
-        testToken.address // staking token address
-      );
-
-      await stakeVault.connect(investorA).deposite(1, 1500);
-      let dealIds = await stakeVault.getDealIds(0, 0);  // Get All Deal Ids
-      expect(dealIds.length).to.eq(3);
-      dealIds = await stakeVault.getDealIds(1, 0); // Get Deal Ids that has not NotDisplaying & Closed status
-      expect(dealIds.length).to.eq(1);
-      dealIds = await stakeVault.getDealIds(2, 0); // Get Deal Ids that has NotDisplaying status
-      expect(dealIds.length).to.eq(2);
-      dealIds = await stakeVault.getDealIds(2, 1); // Get Deal Ids that has Staking status
-      expect(dealIds.length).to.eq(1);
-    })
   });
 });

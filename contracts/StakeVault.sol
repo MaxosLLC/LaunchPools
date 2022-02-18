@@ -395,7 +395,7 @@ contract StakeVault is Ownable {
         if(_displayStatus == DisplayStatus.All) {
             return dealIds;
         } else {
-            for(uint256 id=0; id<dealIds.length; id++) {
+            for(uint256 id=1; id<=dealIds.length; id++) {
                 DealInfo storage deal = dealInfo[id];
                 if(_displayStatus == DisplayStatus.List) {
                     if(deal.status != DealStatus.NotDisplaying && deal.status != DealStatus.Closed) {

@@ -60,13 +60,13 @@ contract StakeVault is Ownable {
     mapping (address => uint256[]) private stakesByInvestor;
     mapping (address => uint256[]) private dealsBySponsor;
 
-    event AddDeal(uint256, address);
-    event UpdateDeal(uint256, address);
-    event SetDealPrice(uint256, address);
-    event UpdateDealPrice(uint256, address);
-    event Deposit(uint256, uint256, address);
-    event Withdraw(uint256, uint256, address);
-    event Claim(uint256, uint256, address);
+    event AddDeal(uint256 indexed dealId, address sponsor);
+    event UpdateDeal(uint256 indexed dealId, address sponsor);
+    event SetDealPrice(uint256 indexed dealId, address sponsor);
+    event UpdateDealPrice(uint256 indexed dealId, address sponsor);
+    event Deposit(uint256 indexed stakeId, uint256 amount, address investor);
+    event Withdraw(uint256 indexed stakeId, uint256 amount, address investor);
+    event Claim(uint256 indexed dealId, uint256 amount, address sponsor);
 
     constructor(address _token, uint256 _offerPeriod) {
         offerPeriod = _offerPeriod;
@@ -176,7 +176,7 @@ contract StakeVault is Ownable {
             require(deal.minSaleAmount <= stakedAmount, "Set Delivering: The staked amount should be over minSaleAmount.");
 
             if(owner() != msg.sender) {
-                require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status as a Delivering until 7 days after post a deal price.");
+                require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status as a Delivering until expired offer period after post a deal price.");
             }
         } else if(_status == DealStatus.Claiming) {
             require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Set Claiming: Only owner can set Claiming status when the deal status is Delivering.");
@@ -270,7 +270,7 @@ contract StakeVault is Ownable {
         stake.amount = 0;
         IERC20(deal.stakingToken).transfer(msg.sender, _amount);
 
-        emit Withdraw(_dealId, _amount, msg.sender);
+        emit Withdraw(_stakeId, _amount, msg.sender);
     }
 
     function claim(
@@ -435,6 +435,12 @@ contract StakeVault is Ownable {
         address _token
     ) public onlyOwner {
         allowedTokenList[_token] = true;
+    }
+    
+    function setOfferPeriod(
+        uint256 _offerPeriod
+    ) public onlyOwner {
+        offerPeriod = _offerPeriod;
     }
 
     function isAllowedToken(

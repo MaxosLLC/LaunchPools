@@ -4,6 +4,7 @@
 artifacts
 cache
 types
+src
 
 # Logs
 logs

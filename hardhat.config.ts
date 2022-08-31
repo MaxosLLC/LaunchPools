@@ -3,6 +3,7 @@ import { task } from 'hardhat/config'
 import '@typechain/hardhat'
 import '@nomiclabs/hardhat-ethers'
 import '@nomiclabs/hardhat-waffle'
+import '@nomiclabs/hardhat-etherscan'
 import * as dotenv from 'dotenv'
 dotenv.config()
 
@@ -45,6 +46,21 @@ const config: HardhatUserConfig = {
       url: `https://rinkeby.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
     }
+  },
+  etherscan: {
+    apiKey: {
+      rinkeby: process.env.ETHERSCAN_API_KEY ? process.env.ETHERSCAN_API_KEY : ""
+    },
+    customChains: [
+      {
+        network: "rinkeby",
+        chainId: 4,
+        urls: {
+          apiURL: "https://api-rinkeby.etherscan.io/api",
+          browserURL: "https://rinkeby.etherscan.io"
+        }
+      }
+    ]
   },
   typechain: {
     outDir: 'src/typechain',

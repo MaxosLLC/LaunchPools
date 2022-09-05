@@ -7,7 +7,6 @@ import { TestToken, StakeVault } from '../types';
 
 chai.use(solidity);
 const { expect } = chai;
-const offerPeriod = 604800;
 
 describe("4. Other Test", () => {
   let testToken: TestToken;
@@ -23,7 +22,7 @@ describe("4. Other Test", () => {
     testTokenFactory  = await ethers.getContractFactory("TestToken"); 
     stakeVaultFactory = await ethers.getContractFactory("StakeVault"); 
     testToken   = await testTokenFactory.deploy() as TestToken;
-    stakeVault  = await stakeVaultFactory.deploy(testToken.address, offerPeriod) as StakeVault;
+    stakeVault  = await stakeVaultFactory.deploy(testToken.address) as StakeVault;
 
     // Set default allowed token for using in the deal.
     await stakeVault.addAllowedToken(testToken.address);
@@ -38,7 +37,7 @@ describe("4. Other Test", () => {
   describe("Deploying Contracts",() => {
     it('Should have been deployed correctly', async () => {
       expect(await stakeVault.owner()).to.equal(owner.address);
-      expect(await stakeVault.isAllowedToken(testToken.address)).to.equal(true);
+      expect(await stakeVault.allowedTokenList(testToken.address)).to.equal(true);
       expect(await testToken.balanceOf(investorA.address)).to.equal(20000);
     });
   });
@@ -54,6 +53,7 @@ describe("4. Other Test", () => {
         10000, // presale amount
         1000, // minimum sale amount
         100000, // maximum sale amount
+        604800, // offer period
         testToken.address // staking token address
       );
     });
@@ -68,6 +68,7 @@ describe("4. Other Test", () => {
         10000,
         1000,
         100000,
+        604800, // offer period
         testToken.address
       );
       await stakeVault.connect(sponsor).addDeal(
@@ -79,6 +80,7 @@ describe("4. Other Test", () => {
         10000,
         1000,
         100000,
+        604800, // offer period
         testToken.address
       );
 

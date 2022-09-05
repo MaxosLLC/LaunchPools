@@ -1,13 +1,12 @@
 import chai from "chai";
 import { ethers } from "hardhat";
 import { solidity } from 'ethereum-waffle';
-import { ContractFactory, BigNumber } from "ethers";
+import { ContractFactory, BigNumber, Signer } from "ethers";
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { TestToken, StakeVault } from '../types';
 
 chai.use(solidity);
 const { expect } = chai;
-const offerPeriod = 604800;
 
 describe("1. Deal Test", () => {
   let testToken: TestToken;
@@ -24,7 +23,7 @@ describe("1. Deal Test", () => {
     testTokenFactory  = await ethers.getContractFactory("TestToken"); 
     stakeVaultFactory = await ethers.getContractFactory("StakeVault"); 
     testToken   = await testTokenFactory.deploy() as TestToken;
-    stakeVault  = await stakeVaultFactory.deploy(testToken.address, offerPeriod) as StakeVault;
+    stakeVault  = await stakeVaultFactory.deploy(testToken.address) as StakeVault;
 
     // Set default allowed token for using in the deal.
     await stakeVault.addAllowedToken(testToken.address);
@@ -41,7 +40,6 @@ describe("1. Deal Test", () => {
   describe("Deploying Contracts",() => {
     it('Should have been deployed correctly', async () => {
       expect(await stakeVault.owner()).to.equal(owner.address);
-      expect(await stakeVault.isAllowedToken(testToken.address)).to.equal(true);
       expect(await testToken.balanceOf(investorA.address)).to.equal(20000);
       expect(await testToken.balanceOf(investorB.address)).to.equal(20000);
     });
@@ -58,6 +56,7 @@ describe("1. Deal Test", () => {
         10000, // presale amount
         1000, // minimum sale amount
         100000, // maximum sale amount
+        604800, // offer period
         testToken.address // staking token address
       );
     });
@@ -87,7 +86,7 @@ describe("1. Deal Test", () => {
           10000,
           testToken.address
         )
-      ).to.be.revertedWith("The deal should be empty.");
+      ).to.be.revertedWith("Stake Exist.");
     });
 
     it('Check deal status when change lead investor.', async () => {

@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract StakeVault is Ownable {
     using SafeMath for uint256;
     using Counters for Counters.Counter;
-
+    
     struct StakeInfo {
         uint256 id;
         uint256 dealId;
@@ -30,23 +30,32 @@ contract StakeVault is Ownable {
         bool isStaked;
     }
 
+    struct DealAmount {
+        uint256 preSale;
+        uint256 minSale;
+        uint256 maxSale;
+    }
+
+    struct DealBonus {
+        uint256 start;
+        uint256 end;
+    }
+
     struct DealInfo {
         string name;
         string url;
         address sponsor;
         address stakingToken;
-        uint256 startBonus;
-        uint256 endBonus;
-        uint256 preSaleAmount;
-        uint256 minSaleAmount;
-        uint256 maxSaleAmount;
+        uint256 offerPeriod;
         uint256[] stakeIds;
+        DealBonus bonus;
+        DealAmount amount;
         LeadInvestor lead;
         DealPrice dealPrice;
         DealStatus status;
     }
-    
-    uint256 public offerPeriod;
+
+    bool public closeAll = false;
     uint256[] private dealIds; 
     enum DealStatus { NotDisplaying, Staking, Offering, Delivering, Claiming, Closed }
     enum DisplayStatus { All, List, Item }
@@ -68,18 +77,17 @@ contract StakeVault is Ownable {
     event Withdraw(uint256 indexed stakeId, uint256 amount, address investor);
     event Claim(uint256 indexed dealId, uint256 amount, address sponsor);
 
-    constructor(address _token, uint256 _offerPeriod) {
-        offerPeriod = _offerPeriod;
+    constructor(address _token) {
         allowedTokenList[_token] = true;
     }
 
     modifier allowedToken(address _token) {
-        require(allowedTokenList[_token], "The staking token is not allowed");
+        require(allowedTokenList[_token], "Not Allowed.");
         _;
     }
 
     modifier existDeal(uint256 _dealId) {
-        require(_dealId <= _dealIds.current(), "The Deal is not exist.");
+        require(_dealId <= _dealIds.current(), "Not Exist.");
         _;
     }
 
@@ -92,8 +100,10 @@ contract StakeVault is Ownable {
         uint256 _preSaleAmount,
         uint256 _minSaleAmount,
         uint256 _maxSaleAmount,
+        uint256 _offerPeriod,
         address _stakingToken
-    ) public allowedToken(_stakingToken) {
+    ) external allowedToken(_stakingToken) {
+        require(!closeAll, "Closed.");
         _dealIds.increment();
         uint256 dealId = _dealIds.current();
         dealIds.push(dealId);
@@ -102,11 +112,12 @@ contract StakeVault is Ownable {
         deal.name = _name;
         deal.url = _url;
         deal.lead.investor = _leadInvestor;
-        deal.startBonus = _startBonus;
-        deal.endBonus = _endBonus;
-        deal.preSaleAmount = _preSaleAmount;
-        deal.minSaleAmount = _minSaleAmount;
-        deal.maxSaleAmount = _maxSaleAmount;
+        deal.bonus.start = _startBonus;
+        deal.bonus.end = _endBonus;
+        deal.amount.preSale = _preSaleAmount;
+        deal.amount.minSale = _minSaleAmount;
+        deal.amount.maxSale = _maxSaleAmount;
+        deal.offerPeriod = _offerPeriod;
         deal.sponsor = msg.sender;
         deal.stakingToken = _stakingToken;
 
@@ -126,15 +137,16 @@ contract StakeVault is Ownable {
         uint256 _endBonus,
         uint256 _preSaleAmount,
         address _stakingToken
-    ) public allowedToken(_stakingToken) {
+    ) external allowedToken(_stakingToken) {
+        require(!closeAll, "Closed.");
         DealInfo storage deal = dealInfo[_dealId];
-        require(deal.sponsor == msg.sender, "Only sponsor can update the deal.");
-        require(deal.status == DealStatus.NotDisplaying || deal.status == DealStatus.Staking, "The deal status should be NotDisplaying or Staking.");
-        require(deal.stakeIds.length < 1, "The deal should be empty.");
+        require(deal.sponsor == msg.sender, "Must Sponsor.");
+        require(deal.status == DealStatus.NotDisplaying || deal.status == DealStatus.Staking, "Wrong Status.");
+        require(deal.stakeIds.length < 1, "Stake Exist.");
         deal.lead.investor = _leadInvestor;
-        deal.startBonus = _startBonus;
-        deal.endBonus = _endBonus;
-        deal.preSaleAmount = _preSaleAmount;
+        deal.bonus.start = _startBonus;
+        deal.bonus.end = _endBonus;
+        deal.amount.preSale = _preSaleAmount;
         deal.stakingToken = _stakingToken;
 
         if(_leadInvestor != address(0)) {
@@ -153,35 +165,36 @@ contract StakeVault is Ownable {
     function updateDealStatus(
         uint256 _dealId,
         DealStatus _status
-    ) public {
+    ) external {
+        require(!closeAll, "Closed");
         DealInfo storage deal = dealInfo[_dealId];
-        require(deal.sponsor == msg.sender || owner() == msg.sender, "You have no permission to update deal status.");
-        require(deal.status != DealStatus.Closed, "You can not change status when the deal status is Closed.");
+        require(deal.sponsor == msg.sender || owner() == msg.sender, "No Permission.");
+        require(deal.status != DealStatus.Closed, "Wrong Status.");
 
         if(_status == DealStatus.NotDisplaying) {
-            require(deal.stakeIds.length < 1, "Set NotDisplaying: The deal should not have a stake.");
+            require(deal.stakeIds.length < 1, "Stake Exist.");
         } else if(_status == DealStatus.Staking) {
-            require(deal.status < DealStatus.Delivering, "Set Staking: The deal status should not be Delivering, Claiming, Closed.");
+            require(deal.status < DealStatus.Delivering, "Wrong Status.");
         } else if(_status == DealStatus.Offering) {
-            require(deal.status < DealStatus.Offering, "Set Offering: The deal status should be Staking.");
+            require(deal.status < DealStatus.Offering, "Wrong Status.");
         } else if(_status == DealStatus.Delivering) {
-            require(deal.status == DealStatus.Offering, "Set Delivering: The deal status should be Offering.");
+            require(deal.status == DealStatus.Offering, "Wrong Status.");
             
             uint256[] memory stakeIds = deal.stakeIds;
             uint256 stakedAmount;
             for(uint256 i=0; i<stakeIds.length; i++) {
-                StakeInfo storage stake = stakeInfo[stakeIds[i]];
+                StakeInfo memory stake = stakeInfo[stakeIds[i]];
                 stakedAmount = stakedAmount.add(stake.amount);
             }
-            require(deal.minSaleAmount <= stakedAmount, "Set Delivering: The staked amount should be over minSaleAmount.");
+            require(deal.amount.minSale <= stakedAmount, "Not Enough.");
 
             if(owner() != msg.sender) {
-                require(deal.dealPrice.startDate.add(offerPeriod) < block.timestamp, "Set Delivering: The sponsor cannot set status as a Delivering until expired offer period after post a deal price.");
+                require(deal.dealPrice.startDate.add(deal.offerPeriod) < block.timestamp, "Period Error");
             }
         } else if(_status == DealStatus.Claiming) {
-            require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Set Claiming: Only owner can set Claiming status when the deal status is Delivering.");
+            require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Error.");
         } else if(_status != DealStatus.Closed) {
-            revert("You cannot change the deal status.");
+            revert("Can't change.");
         }
         
         deal.status = _status;
@@ -191,16 +204,17 @@ contract StakeVault is Ownable {
         uint256 _dealId,
         DealStatus _status
     ) public view existDeal(_dealId) returns(bool) {
-        DealInfo storage deal = dealInfo[_dealId];
+        DealInfo memory deal = dealInfo[_dealId];
         return deal.status == _status;
     }
 
     function setDealPrice(
         uint256 _dealId,
         uint256 _price
-    ) public existDeal(_dealId) {
+    ) external existDeal(_dealId) {
+        require(!closeAll, "Closed");
         DealInfo storage deal = dealInfo[_dealId];
-        require(deal.sponsor == msg.sender, "Only sponsor can set the price");
+        require(deal.sponsor == msg.sender, "Must Sponsor.");
         deal.dealPrice.price = _price;
         deal.dealPrice.startDate = block.timestamp;
         deal.status = DealStatus.Offering;
@@ -211,10 +225,11 @@ contract StakeVault is Ownable {
     function updateDealPrice(
         uint256 _dealId,
         uint256 _price
-    ) public existDeal(_dealId) {
+    ) external existDeal(_dealId) {
+        require(!closeAll, "Closed");
         DealInfo storage deal = dealInfo[_dealId];
-        require(deal.sponsor == msg.sender, "Only sponsor can set the price");
-        require(deal.status == DealStatus.Offering, "The deal status should be Offering.");
+        require(deal.sponsor == msg.sender, "Must Sponsor.");
+        require(deal.status == DealStatus.Offering, "Wrong Status.");
         deal.dealPrice.updateDate = block.timestamp;
         deal.dealPrice.price = _price;
 
@@ -224,18 +239,17 @@ contract StakeVault is Ownable {
     function deposite(
         uint256 _dealId,
         uint256 _amount
-    ) public existDeal(_dealId) {
-        require(checkDealStatus(_dealId, DealStatus.NotDisplaying) || checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "The deal status should be NotDisplaying, Staking or Offering.");
-        require(_amount > 0, "The deposite amount is not enough.");
+    ) external existDeal(_dealId) {
+        require(!closeAll, "Closed");
+        require(checkDealStatus(_dealId, DealStatus.NotDisplaying) || checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "Wrong Status.");
+        require(_amount > 0, "Not Empty.");
         DealInfo storage deal = dealInfo[_dealId];
 
         if(deal.lead.investor != address(0)) {
             if(deal.lead.investor != msg.sender) {
-                require(deal.lead.isStaked, "The lead investor should stake at first.");
+                require(deal.lead.isStaked, "Can't Stake.");
             } else {
-                if(!deal.lead.isStaked) {
-                    deal.lead.isStaked = true;
-                }
+                deal.lead.isStaked = true;
             }
             if(deal.stakeIds.length < 1) {
                 deal.status = DealStatus.Staking;
@@ -259,13 +273,16 @@ contract StakeVault is Ownable {
 
     function withdraw(
         uint256 _stakeId
-    ) public {
+    ) external {
         StakeInfo storage stake = stakeInfo[_stakeId];
         uint256 _dealId = stake.dealId;
-        require(!(checkDealStatus(_dealId, DealStatus.Delivering) && checkDealStatus(_dealId, DealStatus.Claiming)), "The deal status should not be a Delivering or Claiming.");
-        require(stake.staker == msg.sender, "Must be a staker");
-        require(stake.amount > 0, "The withdraw amount is not enough.");
-        DealInfo storage deal = dealInfo[_dealId];
+        require(stake.staker == msg.sender, "Must Staker");
+
+        if(!closeAll) {
+            require(!(checkDealStatus(_dealId, DealStatus.Delivering) && checkDealStatus(_dealId, DealStatus.Claiming)), "Wrong Status.");
+        }
+        
+        DealInfo memory deal = dealInfo[_dealId];
         uint256 _amount = stake.amount;
         stake.amount = 0;
         IERC20(deal.stakingToken).transfer(msg.sender, _amount);
@@ -276,9 +293,10 @@ contract StakeVault is Ownable {
     function claim(
         uint256 _dealId
     ) external {
-        require(checkDealStatus(_dealId, DealStatus.Claiming), "The deal status should be Claiming.");
+        require(!closeAll, "Closed");
+        require(checkDealStatus(_dealId, DealStatus.Claiming), "Wrong Status.");
         DealInfo storage deal = dealInfo[_dealId];
-        require(deal.sponsor == msg.sender, "Must be a sponsor of this deal");
+        require(deal.sponsor == msg.sender, "Must Sponsor.");
         deal.status = DealStatus.Closed;
         
         uint256[] memory stakeIds = deal.stakeIds;
@@ -291,11 +309,11 @@ contract StakeVault is Ownable {
                 claimAmount = claimAmount.add(stake.amount);
                 stake.isClaimed = true;
 
-                if(claimAmount > deal.maxSaleAmount) {
-                    uint256 diffAmount = claimAmount.sub(deal.maxSaleAmount);
+                if(claimAmount > deal.amount.maxSale) {
+                    uint256 diffAmount = claimAmount.sub(deal.amount.maxSale);
                     stake.restAmount = diffAmount;
                     stake.amount = stake.amount.sub(diffAmount);
-                    claimAmount = deal.maxSaleAmount;
+                    claimAmount = deal.amount.maxSale;
                     break;
                 } else {
                     stake.amount = 0;
@@ -310,85 +328,17 @@ contract StakeVault is Ownable {
 
     function sendBack(
         uint256 _stakeId
-    ) public {
+    ) external {
         StakeInfo storage stake = stakeInfo[_stakeId];
-        DealInfo storage deal = dealInfo[stake.dealId];
-        require(deal.status == DealStatus.Closed, "The deal status should be a Closed.");
-        require(deal.sponsor == msg.sender || owner() == msg.sender, "You have no permission to send back the staked amount.");
-        require(stake.amount > 0, "The withdraw amount is not enough.");
+        DealInfo memory deal = dealInfo[stake.dealId];
+        require(deal.status == DealStatus.Closed, "Wrong Status.");
+        require(deal.sponsor == msg.sender || owner() == msg.sender, "No Permission.");
         uint256 _amount = stake.amount;
         stake.amount = 0;
         IERC20(deal.stakingToken).transfer(stake.staker, _amount);
     }
 
-    function getBonus(
-        uint256 _stakeId
-    ) public view returns(uint256) {
-        StakeInfo memory stake = stakeInfo[_stakeId];
-        DealInfo memory deal = dealInfo[stake.dealId];
-        uint256[] memory stakeIds = deal.stakeIds;
-        uint256 stakedAmount; // total staked amount in the deal before _staker stake 
-        uint256 bonus; // the average bonus of the _staker after staking
-        uint256 _amount = stake.amount; // staked amount while in the presale
-        
-        for(uint256 i=0; i<stakeIds.length; i++) {
-            if(_stakeId <= stakeIds[i]) {
-                break;
-            }
-            StakeInfo memory _stake = stakeInfo[stakeIds[i]];
-            if(_stake.amount > 0) {
-                stakedAmount = stakedAmount.add(_stake.amount);
-            }
-        }
-
-        if(deal.preSaleAmount < stakedAmount) {
-            return 0;
-        }
-
-        if(deal.preSaleAmount < stakedAmount.add(_amount)) {
-            _amount = deal.preSaleAmount.sub(stakedAmount);
-        }
-
-        bonus = deal.startBonus.sub(deal.endBonus).mul(deal.preSaleAmount.sub(stakedAmount).sub(_amount.div(2))).div(deal.preSaleAmount).add(deal.endBonus);
-
-        return bonus;
-    }
-
-    function getEstimateBonus(
-        uint256 _dealId,
-        uint256 _amount
-    ) public view returns(uint256) {
-        if(_amount <= 0) {
-            return 0;
-        }
-
-        DealInfo memory deal = dealInfo[_dealId];
-        uint256[] memory stakeIds = deal.stakeIds;
-        uint256 stakedAmount; // total staked amount in the deal before _staker stake 
-        uint256 bonus; // the average bonus of the _staker after staking
-        uint256 amount = _amount; // estimate amount
-        
-        for(uint256 i=0; i<stakeIds.length; i++) {
-            StakeInfo memory _stake = stakeInfo[stakeIds[i]];
-            if(_stake.amount > 0) {
-                stakedAmount = stakedAmount.add(_stake.amount);
-            }
-        }
-
-        if(deal.preSaleAmount < stakedAmount) {
-            return 0;
-        }
-
-        if(deal.preSaleAmount < stakedAmount.add(amount)) {
-            amount = deal.preSaleAmount.sub(stakedAmount);
-        }
-
-        bonus = deal.startBonus.sub(deal.endBonus).mul(deal.preSaleAmount.sub(stakedAmount).sub(amount.div(2))).div(deal.preSaleAmount).add(deal.endBonus);
-
-        return bonus;
-    }
-
-    function getDealIds(DisplayStatus _displayStatus, DealStatus _dealStatus) public view returns(uint256[] memory) {
+    function getDealIds(DisplayStatus _displayStatus, DealStatus _dealStatus) external view returns(uint256[] memory) {
         uint256[] memory filterDealIds = new uint256[](dealIds.length);
         uint256 index = 0;
         
@@ -396,7 +346,7 @@ contract StakeVault is Ownable {
             return dealIds;
         } else {
             for(uint256 id=1; id<=dealIds.length; id++) {
-                DealInfo storage deal = dealInfo[id];
+                DealInfo memory deal = dealInfo[id];
                 if(_displayStatus == DisplayStatus.List) {
                     if(deal.status != DealStatus.NotDisplaying && deal.status != DealStatus.Closed) {
                         filterDealIds[index] = id;
@@ -418,38 +368,24 @@ contract StakeVault is Ownable {
         return tmp;
     } 
 
-    function getStakes (uint256 _dealId) public view returns(uint256 [] memory) {
-        DealInfo storage deal = dealInfo[_dealId];
+    function addAllowedToken(address _token) external onlyOwner {
+        allowedTokenList[_token] = true;
+    }
+
+    function toggleClose() external onlyOwner {
+        closeAll = !closeAll;
+    }
+
+    function getStakeIds (uint256 _dealId) external view returns(uint256 [] memory) {
+        DealInfo memory deal = dealInfo[_dealId];
         return deal.stakeIds;
     }
     
-    function getInvetorStakes (address _investor) public view returns(uint256 [] memory) {
+    function getInvetorStakes (address _investor) external view returns(uint256 [] memory) {
         return stakesByInvestor[_investor];
     }
     
-    function getSponsorDeals (address _sponsor) public view returns(uint256 [] memory) {
+    function getSponsorDeals (address _sponsor) external view returns(uint256 [] memory) {
         return dealsBySponsor[_sponsor];
-    }
-    
-    function addAllowedToken(
-        address _token
-    ) public onlyOwner {
-        allowedTokenList[_token] = true;
-    }
-    
-    function setOfferPeriod(
-        uint256 _offerPeriod
-    ) public onlyOwner {
-        offerPeriod = _offerPeriod;
-    }
-
-    function isAllowedToken(
-        address _token
-    ) public view returns(bool) {
-        return allowedTokenList[_token];
-    }
-
-    function currentBlockTime() public view returns (uint256) {
-        return block.timestamp;
     }
 }

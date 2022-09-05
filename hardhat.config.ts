@@ -4,6 +4,7 @@ import '@typechain/hardhat'
 import '@nomiclabs/hardhat-ethers'
 import '@nomiclabs/hardhat-waffle'
 import '@nomiclabs/hardhat-etherscan'
+import 'hardhat-contract-sizer'
 import * as dotenv from 'dotenv'
 dotenv.config()
 
@@ -16,7 +17,7 @@ task("accounts", "Prints the list of accounts", async (args, hre: HardhatRuntime
 });
 
 const config: HardhatUserConfig = {
-  defaultNetwork: "rinkeby",
+  defaultNetwork: "hardhat",
   solidity: {
     settings: {
       optimizer: {
@@ -48,22 +49,10 @@ const config: HardhatUserConfig = {
     }
   },
   etherscan: {
-    apiKey: {
-      rinkeby: process.env.ETHERSCAN_API_KEY ? process.env.ETHERSCAN_API_KEY : ""
-    },
-    customChains: [
-      {
-        network: "rinkeby",
-        chainId: 4,
-        urls: {
-          apiURL: "https://api-rinkeby.etherscan.io/api",
-          browserURL: "https://rinkeby.etherscan.io"
-        }
-      }
-    ]
+    apiKey: process.env.ETHERSCAN_API_KEY ? process.env.ETHERSCAN_API_KEY : ""
   },
   typechain: {
-    outDir: 'src/typechain',
+    outDir: 'types',
     target: 'ethers-v5',
   },
 };

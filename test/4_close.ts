@@ -92,14 +92,14 @@ describe("4. Close Test", () => {
     });
 
     it('Check stake.', async () => {
-      stakeVault.connect(investorA).deposite(1, 1000);
+      stakeVault.connect(investorA).deposit(1, 1000);
 
       // Set CloseAll is true
       await stakeVault.connect(owner).toggleClose();
 
-      // Check deposite
+      // Check deposit
       await expect(
-        stakeVault.connect(investorA).deposite(1, 1500)
+        stakeVault.connect(investorA).deposit(1, 1500)
       ).to.be.revertedWith("Closed.");
 
       // Check withdraw
@@ -107,7 +107,7 @@ describe("4. Close Test", () => {
     });
 
     it('Check claim.', async () => {
-      stakeVault.connect(investorA).deposite(1, 1000);
+      stakeVault.connect(investorA).deposit(1, 1000);
 
       // Update deal status
       await stakeVault.connect(owner).updateDealStatus(1, 2);

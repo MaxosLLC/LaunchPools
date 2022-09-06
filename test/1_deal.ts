@@ -76,7 +76,7 @@ describe("1. Deal Test", () => {
       );
 
       // Update deal after staking.
-      await stakeVault.connect(investorB).deposite(1, 1000); // lead investor stake at first.
+      await stakeVault.connect(investorB).deposit(1, 1000); // lead investor stake at first.
       await expect(
         stakeVault.connect(sponsor).updateDeal(
           1,

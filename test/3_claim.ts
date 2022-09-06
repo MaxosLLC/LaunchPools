@@ -68,8 +68,8 @@ describe("3. Claim Test", () => {
 
     it('Should claim staked amount after setting deal status as a Claiming by owner', async () => {
       // The investors stake their assets
-      await stakeVault.connect(investorA).deposite(1, 1500);
-      await stakeVault.connect(investorB).deposite(1, 2500);
+      await stakeVault.connect(investorA).deposit(1, 1500);
+      await stakeVault.connect(investorB).deposit(1, 2500);
       
       // Check current staked amount
       const A_Stake  = await stakeVault.stakeInfo(1);

@@ -230,7 +230,7 @@ contract StakeVault is Ownable {
         emit UpdateDealPrice(_dealId, msg.sender);
     }
 
-    function deposite(
+    function deposit(
         uint256 _dealId,
         uint256 _amount
     ) external existDeal(_dealId) {

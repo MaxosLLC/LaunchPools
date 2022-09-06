@@ -7,9 +7,8 @@ import { TestToken, StakeVault } from '../types';
 
 chai.use(solidity);
 const { expect } = chai;
-const offerPeriod = 604800;
 
-describe("StakeVault Contract", () => {
+describe("2. Stake Test", () => {
   let testToken: TestToken;
   let stakeVault: StakeVault;
   let stakeVaultFactory: ContractFactory;
@@ -25,7 +24,7 @@ describe("StakeVault Contract", () => {
     testTokenFactory  = await ethers.getContractFactory("TestToken"); 
     stakeVaultFactory = await ethers.getContractFactory("StakeVault"); 
     testToken   = await testTokenFactory.deploy() as TestToken;
-    stakeVault  = await stakeVaultFactory.deploy(testToken.address, offerPeriod) as StakeVault;
+    stakeVault  = await stakeVaultFactory.deploy(testToken.address) as StakeVault;
 
     // Set default allowed token for using in the deal.
     await stakeVault.addAllowedToken(testToken.address);
@@ -44,104 +43,36 @@ describe("StakeVault Contract", () => {
   describe("Deploying Contracts",() => {
     it('Should have been deployed correctly', async () => {
       expect(await stakeVault.owner()).to.equal(owner.address);
-      expect(await stakeVault.isAllowedToken(testToken.address)).to.equal(true);
       expect(await testToken.balanceOf(investorA.address)).to.equal(20000);
       expect(await testToken.balanceOf(investorB.address)).to.equal(20000);
       expect(await testToken.balanceOf(investorC.address)).to.equal(20000);
     });
   });
 
-  describe("Testing StakeVault Contract", async () => {
+  describe("Test stakes event in a deal", async () => {
     beforeEach('Add a deal', async () => {
       await stakeVault.connect(sponsor).addDeal(
         'Test Deal', // deal name
-        'https://google.com', // deal url
+        'https://test.com', // deal url
         investorA.address, // lead investor
         100, // start bonus
         0, // end bonus
         10000, // presale amount
         1000, // minimum sale amount
         100000, // maximum sale amount
+        604800, // offer period
         testToken.address // staking token address
       );
     });
 
-    it('The status of deal should be a NotDisplaying after creating new deal', async () => {
-      expect(await stakeVault.checkDealStatus(1, 0)).to.equal(true);
-    });
-
-    it('Update a deal', async () => {
-      await stakeVault.connect(sponsor).updateDeal(
-        1, // deal Id
-        investorB.address, // lead investor
-        50, // start bonus
-        20, // end bonus
-        10000, // presale amount
-        testToken.address // staking token price
-      );
-
-      // Update deal after staking.
-      await stakeVault.connect(investorB).deposite(1, 1000); // lead investor stake at first.
-      await expect(
-        stakeVault.connect(sponsor).updateDeal(
-          1,
-          investorA.address,
-          100,
-          0,
-          10000,
-          testToken.address
-        )
-      ).to.be.revertedWith("The deal should be empty.");
-    });
-
     it('The investors stake on a deal', async () => {
       // Check a deal when other investor stake, not a lead investor
-      await expect(stakeVault.connect(investorB).deposite(1, 1000)).to.be.revertedWith("The lead investor should stake at first.");
+      await expect(stakeVault.connect(investorB).deposite(1, 1000)).to.be.revertedWith("Can't Stake.");
 
       await stakeVault.connect(investorA).deposite(1, 1000); // lead investor stake at first.
       await stakeVault.connect(investorB).deposite(1, 2000); // Other one can stake.
 
       expect(await stakeVault.checkDealStatus(1, 1)).to.equal(true); // The deal status should be Staking after stake.
-    });
-
-    it('Set price to the deal', async () => {
-      await stakeVault.connect(sponsor).setDealPrice(1, 100);
-
-      // The deal status should be Offering after setting price
-      expect(await stakeVault.checkDealStatus(1, 2)).to.equal(true);
-
-      // Checking the price of deal
-      const deal = await stakeVault.dealInfo(1);
-      expect(BigNumber.from(deal.dealPrice.price).toNumber()).to.eq(100);
-    });
-
-    it('Check bonus of investors after staked', async () => {
-      // The investors stake their assests
-      await stakeVault.connect(investorA).deposite(1, 1000);
-      const ES_Bonus1 = await stakeVault.getEstimateBonus(1, 2500);
-      expect(ES_Bonus1).to.equal(BigNumber.from('77'));
-
-      await stakeVault.connect(investorB).deposite(1, 2500);
-      const ES_Bonus2 = await stakeVault.getEstimateBonus(1, 5000);
-      expect(ES_Bonus2).to.equal(BigNumber.from('40'));
-
-      await stakeVault.connect(investorC).deposite(1, 5000);
-      const ES_Bonus3 = await stakeVault.getEstimateBonus(1, 500);
-      expect(ES_Bonus3).to.equal(BigNumber.from('12'));
-      
-      await stakeVault.connect(investorA).deposite(1, 5000);
-      
-      // Getting the bonus from staked amount
-      const A_Bonus1  = await stakeVault.getBonus(1);
-      const A_Bonus2  = await stakeVault.getBonus(4);
-      const B_Bonus   = await stakeVault.getBonus(2);
-      const C_Bonus   = await stakeVault.getBonus(3);
-      
-      // Checking the bonus
-      expect(A_Bonus1).to.equal(BigNumber.from('95'));
-      expect(A_Bonus2).to.equal(BigNumber.from('7'));
-      expect(B_Bonus).to.equal(BigNumber.from('77'));
-      expect(C_Bonus).to.equal(BigNumber.from('40'));
     });
 
     it('Unstake investors staked amount', async () => {
@@ -185,8 +116,7 @@ describe("StakeVault Contract", () => {
       await stakeVault.connect(sponsor).sendBack(2);
       
       // The sender should be a owner or sponsor and the stakted amount is over 0 when unstaking 
-      await expect(stakeVault.connect(investorA).sendBack(1)).to.be.revertedWith("You have no permission to send back the staked amount.");
-      await expect(stakeVault.connect(owner).sendBack(1)).to.be.revertedWith("The withdraw amount is not enough.");
+      await expect(stakeVault.connect(investorA).sendBack(1)).to.be.revertedWith("No Permission.");
       
       // Checking current amount
       const A_UnStake  = await stakeVault.stakeInfo(1);
@@ -223,40 +153,5 @@ describe("StakeVault Contract", () => {
       expect(A_Balance.amount).to.eq(0);
       expect(B_Balance.amount).to.eq(0);
     });
-
-    it('Check getting deal ids', async () => {
-      await stakeVault.connect(sponsor).addDeal(
-        'Second Deal', // deal name
-        'https://google.com', // deal url
-        investorA.address, // lead investor
-        100, // start bonus
-        0, // end bonus
-        10000, // presale amount
-        1000, // minimum sale amount
-        100000, // maximum sale amount
-        testToken.address // staking token address
-      );
-      await stakeVault.connect(sponsor).addDeal(
-        'Third Deal', // deal name
-        'https://google.com', // deal url
-        investorA.address, // lead investor
-        100, // start bonus
-        0, // end bonus
-        10000, // presale amount
-        1000, // minimum sale amount
-        100000, // maximum sale amount
-        testToken.address // staking token address
-      );
-
-      await stakeVault.connect(investorA).deposite(1, 1500);
-      let dealIds = await stakeVault.getDealIds(0, 0);  // Get All Deal Ids
-      expect(dealIds.length).to.eq(3);
-      dealIds = await stakeVault.getDealIds(1, 0); // Get Deal Ids that has not NotDisplaying & Closed status
-      expect(dealIds.length).to.eq(1);
-      dealIds = await stakeVault.getDealIds(2, 0); // Get Deal Ids that has NotDisplaying status
-      expect(dealIds.length).to.eq(2);
-      dealIds = await stakeVault.getDealIds(2, 1); // Get Deal Ids that has Staking status
-      expect(dealIds.length).to.eq(1);
-    })
   });
 });

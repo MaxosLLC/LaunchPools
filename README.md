@@ -2,16 +2,29 @@
 
 This repo contains all the contracts for Presail. It uses hardhat to aid in development.
 
-### Setting up:
+### Installation:
 
-Install all dependencies: `npm i`.
+```
+git clone https://github.com/MaxosLLC/LaunchPools.git
+cd LaunchPools
+cp .env.example .env
+npm install
+```
 
-### Running the tests
+### Deploy and Verify:
+```
+npx hardhat run --network <your-network> scripts/deploy.ts
+npx hardhat verify --network <your-network> --constructor-args scripts/arguments.ts DEPLOYED_CONTRACT_ADDRESS
+```
 
-`npx hardhat compile`.
-`npx hardhat test`.
+### Run the tests:
 
-### Running a local node:
+```
+npx hardhat compile
+npx hardhat test
+```
+
+### Run a local node:
 
 In order to test the system e2e, a local blockchain must be running.
 

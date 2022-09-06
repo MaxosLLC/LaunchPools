@@ -67,18 +67,18 @@ describe("2. Stake Test", () => {
 
     it('The investors stake on a deal', async () => {
       // Check a deal when other investor stake, not a lead investor
-      await expect(stakeVault.connect(investorB).deposite(1, 1000)).to.be.revertedWith("Can't Stake.");
+      await expect(stakeVault.connect(investorB).deposit(1, 1000)).to.be.revertedWith("Can't Stake.");
 
-      await stakeVault.connect(investorA).deposite(1, 1000); // lead investor stake at first.
-      await stakeVault.connect(investorB).deposite(1, 2000); // Other one can stake.
+      await stakeVault.connect(investorA).deposit(1, 1000); // lead investor stake at first.
+      await stakeVault.connect(investorB).deposit(1, 2000); // Other one can stake.
 
       expect(await stakeVault.checkDealStatus(1, 1)).to.equal(true); // The deal status should be Staking after stake.
     });
 
     it('Unstake investors staked amount', async () => {
       // The investors stake their assets
-      await stakeVault.connect(investorA).deposite(1, 1000);
-      await stakeVault.connect(investorB).deposite(1, 2500);
+      await stakeVault.connect(investorA).deposit(1, 1000);
+      await stakeVault.connect(investorB).deposit(1, 2500);
 
       // Checking the staked amount
       const A_Stake  = await stakeVault.stakeInfo(1);
@@ -99,8 +99,8 @@ describe("2. Stake Test", () => {
 
     it('Only the owner or sponsor should use sendBack.', async () => {
       // The investors stake their assets
-      await stakeVault.connect(investorA).deposite(1, 1000);
-      await stakeVault.connect(investorB).deposite(1, 2500);
+      await stakeVault.connect(investorA).deposit(1, 1000);
+      await stakeVault.connect(investorB).deposit(1, 2500);
       
       // Checking current staked amount
       const A_Stake  = await stakeVault.stakeInfo(1);
@@ -127,8 +127,8 @@ describe("2. Stake Test", () => {
 
     it('Should claim staked amount after setting deal status as a Claiming by owner', async () => {
       // The investors stake their assets
-      await stakeVault.connect(investorA).deposite(1, 1500);
-      await stakeVault.connect(investorB).deposite(1, 2500);
+      await stakeVault.connect(investorA).deposit(1, 1500);
+      await stakeVault.connect(investorB).deposit(1, 2500);
       
       // Check current staked amount
       const A_Stake  = await stakeVault.stakeInfo(1);

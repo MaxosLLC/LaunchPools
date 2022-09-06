@@ -84,7 +84,7 @@ describe("5. Other Test", () => {
         testToken.address
       );
 
-      await stakeVault.connect(investorA).deposite(1, 1500);
+      await stakeVault.connect(investorA).deposit(1, 1500);
       let dealIds = await stakeVault.getDealIds(0, 0);  // Get All Deal Ids
       expect(dealIds.length).to.eq(3);
       dealIds = await stakeVault.getDealIds(1, 0); // Get Deal Ids that has not NotDisplaying & Closed status

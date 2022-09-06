@@ -49,7 +49,7 @@ describe("1. Deal Test", () => {
     beforeEach('Add a deal', async () => {
       await stakeVault.connect(sponsor).addDeal(
         'Test Deal', // deal name
-        'https://google.com', // deal url
+        'https://test.com', // deal url
         investorA.address, // lead investor
         100, // start bonus
         0, // end bonus

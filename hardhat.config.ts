@@ -5,6 +5,7 @@ import '@nomiclabs/hardhat-ethers'
 import '@nomiclabs/hardhat-waffle'
 import '@nomiclabs/hardhat-etherscan'
 import 'hardhat-contract-sizer'
+import 'hardhat-gas-reporter'
 import * as dotenv from 'dotenv'
 dotenv.config()
 
@@ -54,7 +55,11 @@ const config: HardhatUserConfig = {
   typechain: {
     outDir: 'types',
     target: 'ethers-v5',
-  },
+  }, 
+  gasReporter: {
+    enabled: (process.env.REPORT_GAS) ? true : false,
+    currency: 'USD'
+  }
 };
 
 export default config;

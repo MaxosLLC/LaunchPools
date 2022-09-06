@@ -48,6 +48,7 @@ contract StakeVault is Ownable {
         address stakingToken;
         uint256 offerPeriod;
         uint256[] stakeIds;
+        uint256 totalStaked;
         DealBonus bonus;
         DealAmount amount;
         LeadInvestor lead;
@@ -166,7 +167,7 @@ contract StakeVault is Ownable {
         uint256 _dealId,
         DealStatus _status
     ) external {
-        require(!closeAll, "Closed");
+        require(!closeAll, "Closed.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender || owner() == msg.sender, "No Permission.");
         require(deal.status != DealStatus.Closed, "Wrong Status.");
@@ -179,17 +180,10 @@ contract StakeVault is Ownable {
             require(deal.status < DealStatus.Offering, "Wrong Status.");
         } else if(_status == DealStatus.Delivering) {
             require(deal.status == DealStatus.Offering, "Wrong Status.");
-            
-            uint256[] memory stakeIds = deal.stakeIds;
-            uint256 stakedAmount;
-            for(uint256 i=0; i<stakeIds.length; i++) {
-                StakeInfo memory stake = stakeInfo[stakeIds[i]];
-                stakedAmount = stakedAmount.add(stake.amount);
-            }
-            require(deal.amount.minSale <= stakedAmount, "Not Enough.");
+            require(deal.amount.minSale <= deal.totalStaked, "Not Enough.");
 
             if(owner() != msg.sender) {
-                require(deal.dealPrice.startDate.add(deal.offerPeriod) < block.timestamp, "Period Error");
+                require(deal.dealPrice.startDate.add(deal.offerPeriod) < block.timestamp, "Period Error.");
             }
         } else if(_status == DealStatus.Claiming) {
             require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Error.");
@@ -212,7 +206,7 @@ contract StakeVault is Ownable {
         uint256 _dealId,
         uint256 _price
     ) external existDeal(_dealId) {
-        require(!closeAll, "Closed");
+        require(!closeAll, "Closed.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must Sponsor.");
         deal.dealPrice.price = _price;
@@ -226,7 +220,7 @@ contract StakeVault is Ownable {
         uint256 _dealId,
         uint256 _price
     ) external existDeal(_dealId) {
-        require(!closeAll, "Closed");
+        require(!closeAll, "Closed.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must Sponsor.");
         require(deal.status == DealStatus.Offering, "Wrong Status.");
@@ -240,7 +234,7 @@ contract StakeVault is Ownable {
         uint256 _dealId,
         uint256 _amount
     ) external existDeal(_dealId) {
-        require(!closeAll, "Closed");
+        require(!closeAll, "Closed.");
         require(checkDealStatus(_dealId, DealStatus.NotDisplaying) || checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "Wrong Status.");
         require(_amount > 0, "Not Empty.");
         DealInfo storage deal = dealInfo[_dealId];
@@ -266,6 +260,7 @@ contract StakeVault is Ownable {
         stake.amount = _amount;
         stakesByInvestor[staker].push(stakeId);
         deal.stakeIds.push(stakeId);
+        deal.totalStaked = deal.totalStaked.add(_amount);
         IERC20(deal.stakingToken).transferFrom(staker, address(this), _amount);
 
         emit Deposit(_dealId, _amount, staker);
@@ -276,15 +271,16 @@ contract StakeVault is Ownable {
     ) external {
         StakeInfo storage stake = stakeInfo[_stakeId];
         uint256 _dealId = stake.dealId;
-        require(stake.staker == msg.sender, "Must Staker");
+        require(stake.staker == msg.sender, "Must Staker.");
 
         if(!closeAll) {
             require(!(checkDealStatus(_dealId, DealStatus.Delivering) && checkDealStatus(_dealId, DealStatus.Claiming)), "Wrong Status.");
         }
         
-        DealInfo memory deal = dealInfo[_dealId];
+        DealInfo storage deal = dealInfo[_dealId];
         uint256 _amount = stake.amount;
         stake.amount = 0;
+        deal.totalStaked = deal.totalStaked.sub(_amount);
         IERC20(deal.stakingToken).transfer(msg.sender, _amount);
 
         emit Withdraw(_stakeId, _amount, msg.sender);
@@ -293,7 +289,7 @@ contract StakeVault is Ownable {
     function claim(
         uint256 _dealId
     ) external {
-        require(!closeAll, "Closed");
+        require(!closeAll, "Closed.");
         require(checkDealStatus(_dealId, DealStatus.Claiming), "Wrong Status.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must Sponsor.");
@@ -321,6 +317,7 @@ contract StakeVault is Ownable {
             }
         }
         
+        deal.totalStaked = deal.totalStaked.sub(claimAmount);
         IERC20(deal.stakingToken).transfer(msg.sender, claimAmount);
 
         emit Claim(_dealId, claimAmount, msg.sender);
@@ -330,11 +327,16 @@ contract StakeVault is Ownable {
         uint256 _stakeId
     ) external {
         StakeInfo storage stake = stakeInfo[_stakeId];
-        DealInfo memory deal = dealInfo[stake.dealId];
-        require(deal.status == DealStatus.Closed, "Wrong Status.");
+        DealInfo storage deal = dealInfo[stake.dealId];
         require(deal.sponsor == msg.sender || owner() == msg.sender, "No Permission.");
+
+        if(!closeAll) {
+            require(deal.status == DealStatus.Closed, "Wrong Status.");
+        }
+        
         uint256 _amount = stake.amount;
         stake.amount = 0;
+        deal.totalStaked = deal.totalStaked.sub(_amount);
         IERC20(deal.stakingToken).transfer(stake.staker, _amount);
     }
 

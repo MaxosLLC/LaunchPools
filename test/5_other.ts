@@ -8,7 +8,7 @@ import { TestToken, StakeVault } from '../types';
 chai.use(solidity);
 const { expect } = chai;
 
-describe("4. Other Test", () => {
+describe("5. Other Test", () => {
   let testToken: TestToken;
   let stakeVault: StakeVault;
   let stakeVaultFactory: ContractFactory;
@@ -46,7 +46,7 @@ describe("4. Other Test", () => {
     beforeEach('Add a deal', async () => {
       await stakeVault.connect(sponsor).addDeal(
         'Test Deal', // deal name
-        'https://google.com', // deal url
+        'https://test.com', // deal url
         investorA.address, // lead investor
         100, // start bonus
         0, // end bonus
@@ -61,7 +61,7 @@ describe("4. Other Test", () => {
     it('Check getting deal ids', async () => {
       await stakeVault.connect(sponsor).addDeal(
         'Second Deal',
-        'https://google.com',
+        'https://test.com',
         investorA.address,
         100,
         0,
@@ -73,7 +73,7 @@ describe("4. Other Test", () => {
       );
       await stakeVault.connect(sponsor).addDeal(
         'Third Deal',
-        'https://google.com',
+        'https://test.com',
         investorA.address,
         100,
         0,

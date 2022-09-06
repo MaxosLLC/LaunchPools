@@ -24,6 +24,7 @@
     "ethers": "^5.4.7",
     "hardhat": "^2.1.2",
     "hardhat-contract-sizer": "^2.6.1",
+    "hardhat-gas-reporter": "^1.0.8",
     "ts-node": "^10.2.1",
     "typechain": "^5.1.2",
     "typescript": "^4.4.3"

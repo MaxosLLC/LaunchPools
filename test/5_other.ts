@@ -53,6 +53,7 @@ describe("5. Other Test", () => {
         10000, // presale amount
         1000, // minimum sale amount
         100000, // maximum sale amount
+        [0, 10000], // stake limit amount (min, max)
         604800, // offer period
         testToken.address // staking token address
       );
@@ -68,7 +69,8 @@ describe("5. Other Test", () => {
         10000,
         1000,
         100000,
-        604800, // offer period
+        [0, 10000], 
+        604800, 
         testToken.address
       );
       await stakeVault.connect(sponsor).addDeal(
@@ -80,7 +82,8 @@ describe("5. Other Test", () => {
         10000,
         1000,
         100000,
-        604800, // offer period
+        [0, 10000],
+        604800,
         testToken.address
       );
 

@@ -56,6 +56,7 @@ describe("1. Deal Test", () => {
         10000, // presale amount
         1000, // minimum sale amount
         100000, // maximum sale amount
+        [0, 10000], // stake limit amount (min, max)
         604800, // offer period
         testToken.address // staking token address
       );
@@ -72,6 +73,7 @@ describe("1. Deal Test", () => {
         50, // start bonus
         20, // end bonus
         10000, // presale amount
+        [0, 10000], // stake limit amount (min, max)
         testToken.address // staking token price
       );
 
@@ -84,6 +86,7 @@ describe("1. Deal Test", () => {
           100,
           0,
           10000,
+          [0, 10000],
           testToken.address
         )
       ).to.be.revertedWith("Stake Exist.");
@@ -97,6 +100,7 @@ describe("1. Deal Test", () => {
         50,
         20,
         10000,
+        [0, 10000],
         testToken.address
       );
       expect(await stakeVault.checkDealStatus(1, 1)).to.equal(true);

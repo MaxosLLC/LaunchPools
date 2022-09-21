@@ -13,8 +13,8 @@ npm install
 
 ### Deploy and Verify:
 ```
-npx hardhat run --network <your-network> scripts/deploy.ts
-npx hardhat verify --network <your-network> --constructor-args scripts/arguments.ts DEPLOYED_CONTRACT_ADDRESS
+npx hardhat run --network <your-network> scripts/deploy_<network>.ts
+npx hardhat verify --network <your-network> --constructor-args scripts/arguments_<network>.ts DEPLOYED_CONTRACT_ADDRESS
 ```
 
 ### Run the tests:

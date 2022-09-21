@@ -9,7 +9,7 @@ async function deploySmartContract() {
 
   console.log('Deploying contracts with the account:', owner.address);
 
-  const tokenAddress = process.env.USDC_ADDRESS;
+  const tokenAddress = process.env.ETHEREUM_USDC_ADDRESS;
   const StakeVaultFactory = await ethers.getContractFactory("StakeVault");
   stakeVault = await StakeVaultFactory.deploy(tokenAddress) as StakeVault;
   await stakeVault.deployed();

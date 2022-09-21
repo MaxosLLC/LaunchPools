@@ -36,6 +36,11 @@ contract StakeVault is Ownable {
         uint256 maxSale;
     }
 
+    struct StakeLimit {
+        uint256 min;
+        uint256 max;
+    }
+
     struct DealBonus {
         uint256 start;
         uint256 end;
@@ -51,6 +56,7 @@ contract StakeVault is Ownable {
         uint256 totalStaked;
         DealBonus bonus;
         DealAmount amount;
+        StakeLimit limit;
         LeadInvestor lead;
         DealPrice dealPrice;
         DealStatus status;
@@ -101,6 +107,7 @@ contract StakeVault is Ownable {
         uint256 _preSaleAmount,
         uint256 _minSaleAmount,
         uint256 _maxSaleAmount,
+        uint256[] memory _stakeLimit,
         uint256 _offerPeriod,
         address _stakingToken
     ) external allowedToken(_stakingToken) {
@@ -118,6 +125,8 @@ contract StakeVault is Ownable {
         deal.amount.preSale = _preSaleAmount;
         deal.amount.minSale = _minSaleAmount;
         deal.amount.maxSale = _maxSaleAmount;
+        deal.limit.min = _stakeLimit[0];
+        deal.limit.max = _stakeLimit[1];
         deal.offerPeriod = _offerPeriod;
         deal.sponsor = msg.sender;
         deal.stakingToken = _stakingToken;
@@ -137,6 +146,7 @@ contract StakeVault is Ownable {
         uint256 _startBonus,
         uint256 _endBonus,
         uint256 _preSaleAmount,
+        uint256[] memory _stakeLimit,
         address _stakingToken
     ) external allowedToken(_stakingToken) {
         require(!closeAll, "Closed.");
@@ -148,6 +158,8 @@ contract StakeVault is Ownable {
         deal.bonus.start = _startBonus;
         deal.bonus.end = _endBonus;
         deal.amount.preSale = _preSaleAmount;
+        deal.limit.min = _stakeLimit[0];
+        deal.limit.max = _stakeLimit[1];
         deal.stakingToken = _stakingToken;
 
         if(_leadInvestor != address(0)) {
@@ -236,8 +248,8 @@ contract StakeVault is Ownable {
     ) external existDeal(_dealId) {
         require(!closeAll, "Closed.");
         require(checkDealStatus(_dealId, DealStatus.NotDisplaying) || checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "Wrong Status.");
-        require(_amount > 0, "Not Empty.");
         DealInfo storage deal = dealInfo[_dealId];
+        require(deal.limit.min <= _amount && _amount <= deal.limit.max, "Wrong Amount.");
 
         if(deal.lead.investor != address(0)) {
             if(deal.lead.investor != msg.sender) {

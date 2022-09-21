@@ -61,6 +61,7 @@ describe("3. Claim Test", () => {
         10000, // presale amount
         1000, // minimum sale amount
         100000, // maximum sale amount
+        [0, 10000], // stake limit amount (min, max)
         604800, // offer period
         testToken.address // staking token address
       );

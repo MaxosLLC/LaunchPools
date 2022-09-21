@@ -53,6 +53,7 @@ describe("4. Close Test", () => {
         10000, // presale amount
         1000, // minimum sale amount
         100000, // maximum sale amount
+        [0, 10000], // stake limit amount (min, max)
         604800, // offer period
         testToken.address // staking token address
       );
@@ -73,6 +74,7 @@ describe("4. Close Test", () => {
           10000, // presale amount
           1000, // minimum sale amount
           100000, // maximum sale amount
+          [0, 10000], // stake limit amount (min, max)
           604800, // offer period
           testToken.address // staking token address
         )
@@ -86,6 +88,7 @@ describe("4. Close Test", () => {
           50, // start bonus
           20, // end bonus
           10000, // presale amount
+          [0, 10000], // stake limit amount (min, max)
           testToken.address // staking token price
         )
       ).to.be.revertedWith("Closed.");

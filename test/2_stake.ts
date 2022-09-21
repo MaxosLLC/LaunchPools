@@ -60,6 +60,7 @@ describe("2. Stake Test", () => {
         10000, // presale amount
         1000, // minimum sale amount
         100000, // maximum sale amount
+        [100, 10000], // stake limit amount (min, max)
         604800, // offer period
         testToken.address // staking token address
       );
@@ -73,6 +74,11 @@ describe("2. Stake Test", () => {
       await stakeVault.connect(investorB).deposit(1, 2000); // Other one can stake.
 
       expect(await stakeVault.checkDealStatus(1, 1)).to.equal(true); // The deal status should be Staking after stake.
+    });
+
+    it('Test stake limit', async () => {
+      await expect(stakeVault.connect(investorB).deposit(1, 10)).to.be.revertedWith("Wrong Amount.");
+      await expect(stakeVault.connect(investorB).deposit(1, 100000)).to.be.revertedWith("Wrong Amount.");
     });
 
     it('Unstake investors staked amount', async () => {

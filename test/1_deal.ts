@@ -67,14 +67,17 @@ describe("1. Deal Test", () => {
     });
 
     it('Check deal when update parameters.', async () => {
+      const deal = await stakeVault.connect(sponsor).dealInfo(1);
       await stakeVault.connect(sponsor).updateDeal(
         1, // deal Id
+        'https://test.com', // deal url
         investorB.address, // lead investor
         50, // start bonus
         20, // end bonus
         10000, // presale amount
-        [0, 10000], // stake limit amount (min, max)
-        testToken.address // staking token price
+        1000, // minimum sale amount
+        100000, // maximum sale amount
+        [0, 10000] // stake limit amount (min, max)
       );
 
       // Update deal after staking.
@@ -82,39 +85,47 @@ describe("1. Deal Test", () => {
       await expect(
         stakeVault.connect(sponsor).updateDeal(
           1,
+          'https://test.com',
           investorA.address,
           100,
           0,
           10000,
-          [0, 10000],
-          testToken.address
+          1000,
+          100000,
+          [0, 10000]
         )
-      ).to.be.revertedWith("Stake Exist.");
+      ).to.be.revertedWith("Already Exist.");
     });
 
     it('Check deal status when change lead investor.', async () => {
       expect(await stakeVault.checkDealStatus(1, 0)).to.equal(true);
       await stakeVault.connect(sponsor).updateDeal(
         1, 
+        'https://test.com',
         '0x0000000000000000000000000000000000000000',
         50,
         20,
         10000,
-        [0, 10000],
-        testToken.address
+        1000,
+        100000,
+        [0, 10000]
       );
       expect(await stakeVault.checkDealStatus(1, 1)).to.equal(true);
     });
 
     it('Set price to the deal', async () => {
-      await stakeVault.connect(sponsor).setDealPrice(1, 100);
+      await stakeVault.connect(sponsor).setOfferInfo(
+        1, // deal ID 
+        100, // Offer Price
+        'https://test.com' // Offer Terms 
+      );
 
       // The deal status should be Offering after setting price
       expect(await stakeVault.checkDealStatus(1, 2)).to.equal(true);
 
       // Checking the price of deal
       const deal = await stakeVault.dealInfo(1);
-      expect(BigNumber.from(deal.dealPrice.price).toNumber()).to.eq(100);
+      expect(BigNumber.from(deal.offer.price).toNumber()).to.eq(100);
     });
 
   });

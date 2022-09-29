@@ -79,7 +79,6 @@ contract StakeVault is Ownable {
     event AddDeal(uint256 indexed dealId, address sponsor);
     event UpdateDeal(uint256 indexed dealId, address sponsor);
     event SetOfferInfo(uint256 indexed dealId, address sponsor);
-    event UpdateOfferInfo(uint256 indexed dealId, address sponsor);
     event Deposit(uint256 indexed stakeId, uint256 amount, address investor);
     event Withdraw(uint256 indexed stakeId, uint256 amount, address investor);
     event Claim(uint256 indexed dealId, uint256 amount, address sponsor);
@@ -232,21 +231,6 @@ contract StakeVault is Ownable {
         deal.status = DealStatus.Offering;
 
         emit SetOfferInfo(_dealId, msg.sender);
-    }
-
-    function updateOfferInfo(
-        uint256 _dealId,
-        uint256 _price,
-        string memory _terms
-    ) external existDeal(_dealId) {
-        require(!closeAll, "Closed.");
-        DealInfo storage deal = dealInfo[_dealId];
-        require(deal.sponsor == msg.sender, "Must Sponsor.");
-        require(deal.status == DealStatus.Offering, "Wrong Status.");
-        deal.offer.price = _price;
-        deal.offer.terms = _terms;
-
-        emit UpdateOfferInfo(_dealId, msg.sender);
     }
 
     function deposit(

@@ -10,35 +10,10 @@ contract StakeVault is Ownable {
     using SafeMath for uint256;
     using Counters for Counters.Counter;
     
-    struct StakeInfo {
-        uint256 id;
-        uint256 dealId;
-        address staker;
-        uint256 amount;
-        uint256 restAmount;
-        bool isClaimed;
-    }
-
-    struct DealPrice {
-        uint256 price;
-        uint256 startDate;
-        uint256 updateDate;
-    }
-
-    struct LeadInvestor {
-        address investor;
-        bool isStaked;
-    }
-
     struct DealAmount {
         uint256 preSale;
         uint256 minSale;
         uint256 maxSale;
-    }
-
-    struct StakeLimit {
-        uint256 min;
-        uint256 max;
     }
 
     struct DealBonus {
@@ -46,20 +21,45 @@ contract StakeVault is Ownable {
         uint256 end;
     }
 
+    struct StakeLimit {
+        uint256 min;
+        uint256 max; // use 0 as a null
+    }
+
+    struct LeadInvestor {
+        address investor;
+        bool isStaked;
+    }
+
+    struct OfferInfo {
+        uint256 price;
+        uint256 startDate;
+        uint256 period;
+        string terms;
+    }
+
     struct DealInfo {
         string name;
         string url;
         address sponsor;
         address stakingToken;
-        uint256 offerPeriod;
         uint256[] stakeIds;
         uint256 totalStaked;
-        DealBonus bonus;
         DealAmount amount;
+        DealBonus bonus;
         StakeLimit limit;
         LeadInvestor lead;
-        DealPrice dealPrice;
+        OfferInfo offer;
         DealStatus status;
+    }
+
+    struct StakeInfo {
+        uint256 id;
+        uint256 dealId;
+        address staker;
+        uint256 amount;
+        uint256 restAmount;
+        bool isClaimed;
     }
 
     bool public closeAll = false;
@@ -70,16 +70,16 @@ contract StakeVault is Ownable {
     Counters.Counter private _dealIds;
     Counters.Counter private _stakeIds;
 
-    mapping (uint256 => StakeInfo) public stakeInfo;
     mapping (uint256 => DealInfo) public dealInfo;
+    mapping (uint256 => StakeInfo) public stakeInfo;
     mapping (address => bool) public allowedTokenList;
     mapping (address => uint256[]) private stakesByInvestor;
     mapping (address => uint256[]) private dealsBySponsor;
 
     event AddDeal(uint256 indexed dealId, address sponsor);
     event UpdateDeal(uint256 indexed dealId, address sponsor);
-    event SetDealPrice(uint256 indexed dealId, address sponsor);
-    event UpdateDealPrice(uint256 indexed dealId, address sponsor);
+    event SetOfferInfo(uint256 indexed dealId, address sponsor);
+    event UpdateOfferInfo(uint256 indexed dealId, address sponsor);
     event Deposit(uint256 indexed stakeId, uint256 amount, address investor);
     event Withdraw(uint256 indexed stakeId, uint256 amount, address investor);
     event Claim(uint256 indexed dealId, uint256 amount, address sponsor);
@@ -127,7 +127,7 @@ contract StakeVault is Ownable {
         deal.amount.maxSale = _maxSaleAmount;
         deal.limit.min = _stakeLimit[0];
         deal.limit.max = _stakeLimit[1];
-        deal.offerPeriod = _offerPeriod;
+        deal.offer.period = _offerPeriod;
         deal.sponsor = msg.sender;
         deal.stakingToken = _stakingToken;
 
@@ -142,35 +142,35 @@ contract StakeVault is Ownable {
 
     function updateDeal(
         uint256 _dealId,
+        string memory _url,
         address _leadInvestor,
         uint256 _startBonus,
         uint256 _endBonus,
         uint256 _preSaleAmount,
-        uint256[] memory _stakeLimit,
-        address _stakingToken
-    ) external allowedToken(_stakingToken) {
+        uint256 _minSaleAmount,
+        uint256 _maxSaleAmount,
+        uint256[] memory _stakeLimit
+    ) external {
         require(!closeAll, "Closed.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must Sponsor.");
         require(deal.status == DealStatus.NotDisplaying || deal.status == DealStatus.Staking, "Wrong Status.");
-        require(deal.stakeIds.length < 1, "Stake Exist.");
-        deal.lead.investor = _leadInvestor;
+
+        if(_leadInvestor != address(0)) {
+            require(!deal.lead.isStaked, "Already Exist."); 
+            deal.lead.investor = _leadInvestor;
+        } else {
+            deal.status = DealStatus.Staking;
+        }
+
+        deal.url = _url;
         deal.bonus.start = _startBonus;
         deal.bonus.end = _endBonus;
         deal.amount.preSale = _preSaleAmount;
+        deal.amount.minSale = _minSaleAmount;
+        deal.amount.maxSale = _maxSaleAmount;
         deal.limit.min = _stakeLimit[0];
         deal.limit.max = _stakeLimit[1];
-        deal.stakingToken = _stakingToken;
-
-        if(_leadInvestor != address(0)) {
-            if(deal.status != DealStatus.NotDisplaying) {
-                deal.status = DealStatus.NotDisplaying;
-            }
-        } else {
-            if(deal.status != DealStatus.Staking) {
-                deal.status = DealStatus.Staking;
-            }
-        }
 
         emit UpdateDeal(_dealId, msg.sender);
     }
@@ -190,12 +190,16 @@ contract StakeVault is Ownable {
             require(deal.status < DealStatus.Delivering, "Wrong Status.");
         } else if(_status == DealStatus.Offering) {
             require(deal.status < DealStatus.Offering, "Wrong Status.");
+
+            if(deal.offer.startDate == 0) {
+                deal.offer.startDate = block.timestamp;
+            }
         } else if(_status == DealStatus.Delivering) {
             require(deal.status == DealStatus.Offering, "Wrong Status.");
             require(deal.amount.minSale <= deal.totalStaked, "Not Enough.");
 
             if(owner() != msg.sender) {
-                require(deal.dealPrice.startDate.add(deal.offerPeriod) < block.timestamp, "Period Error.");
+                require(deal.offer.startDate.add(deal.offer.period) < block.timestamp, "Period Error.");
             }
         } else if(_status == DealStatus.Claiming) {
             require(owner() == msg.sender && deal.status == DealStatus.Delivering, "Error.");
@@ -214,32 +218,35 @@ contract StakeVault is Ownable {
         return deal.status == _status;
     }
 
-    function setDealPrice(
+    function setOfferInfo(
         uint256 _dealId,
-        uint256 _price
+        uint256 _price,
+        string memory _terms
     ) external existDeal(_dealId) {
         require(!closeAll, "Closed.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must Sponsor.");
-        deal.dealPrice.price = _price;
-        deal.dealPrice.startDate = block.timestamp;
+        deal.offer.price = _price;
+        deal.offer.startDate = block.timestamp;
+        deal.offer.terms = _terms;
         deal.status = DealStatus.Offering;
 
-        emit SetDealPrice(_dealId, msg.sender);
+        emit SetOfferInfo(_dealId, msg.sender);
     }
 
-    function updateDealPrice(
+    function updateOfferInfo(
         uint256 _dealId,
-        uint256 _price
+        uint256 _price,
+        string memory _terms
     ) external existDeal(_dealId) {
         require(!closeAll, "Closed.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must Sponsor.");
         require(deal.status == DealStatus.Offering, "Wrong Status.");
-        deal.dealPrice.updateDate = block.timestamp;
-        deal.dealPrice.price = _price;
+        deal.offer.price = _price;
+        deal.offer.terms = _terms;
 
-        emit UpdateDealPrice(_dealId, msg.sender);
+        emit UpdateOfferInfo(_dealId, msg.sender);
     }
 
     function deposit(
@@ -249,7 +256,11 @@ contract StakeVault is Ownable {
         require(!closeAll, "Closed.");
         require(checkDealStatus(_dealId, DealStatus.NotDisplaying) || checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "Wrong Status.");
         DealInfo storage deal = dealInfo[_dealId];
-        require(deal.limit.min <= _amount && _amount <= deal.limit.max, "Wrong Amount.");
+        require(deal.limit.min <= _amount, "Wrong Amount.");
+
+        if(deal.limit.max > 0) {
+            require(_amount <= deal.limit.max, "Wrong Amount.");
+        }
 
         if(deal.lead.investor != address(0)) {
             if(deal.lead.investor != msg.sender) {

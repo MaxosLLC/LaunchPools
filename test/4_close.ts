@@ -84,12 +84,14 @@ describe("4. Close Test", () => {
       await expect(
         stakeVault.connect(sponsor).updateDeal(
           1, // deal Id
+          'https://test.com', // deal url
           investorA.address, // lead investor
           50, // start bonus
           20, // end bonus
           10000, // presale amount
-          [0, 10000], // stake limit amount (min, max)
-          testToken.address // staking token price
+          1000, // minimum sale amount
+          100000, // maximum sale amount
+          [0, 10000] // stake limit amount (min, max)
         )
       ).to.be.revertedWith("Closed.");
     });

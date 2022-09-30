@@ -30,9 +30,9 @@ describe("3. Claim Test", () => {
     await stakeVault.addAllowedToken(testToken.address);
 
     //Transfer tokens to the investors
-    await testToken.transfer(investorA.address, 20000);
-    await testToken.transfer(investorB.address, 20000);
-    await testToken.transfer(investorC.address, 20000);
+    await testToken.transfer(investorA.address, 200000);
+    await testToken.transfer(investorB.address, 200000);
+    await testToken.transfer(investorC.address, 200000);
 
     //Approve tokens of the investors
     await testToken.connect(investorA).approve(stakeVault.address, BigNumber.from('10').pow('18'), { from: investorA.address });
@@ -44,9 +44,9 @@ describe("3. Claim Test", () => {
     it('Should have been deployed correctly', async () => {
       expect(await stakeVault.owner()).to.equal(owner.address);
       expect(await stakeVault.allowedTokenList(testToken.address)).to.equal(true);
-      expect(await testToken.balanceOf(investorA.address)).to.equal(20000);
-      expect(await testToken.balanceOf(investorB.address)).to.equal(20000);
-      expect(await testToken.balanceOf(investorC.address)).to.equal(20000);
+      expect(await testToken.balanceOf(investorA.address)).to.equal(200000);
+      expect(await testToken.balanceOf(investorB.address)).to.equal(200000);
+      expect(await testToken.balanceOf(investorC.address)).to.equal(200000);
     });
   });
 
@@ -60,8 +60,8 @@ describe("3. Claim Test", () => {
         0, // end bonus
         10000, // presale amount
         1000, // minimum sale amount
-        100000, // maximum sale amount
-        [0, 10000], // stake limit amount (min, max)
+        15000, // maximum sale amount
+        [0, 100000], // stake limit amount (min, max)
         604800, // offer period
         testToken.address // staking token address
       );
@@ -94,6 +94,47 @@ describe("3. Claim Test", () => {
       const B_Balance  = await stakeVault.stakeInfo(2);
       expect(A_Balance.amount).to.eq(0);
       expect(B_Balance.amount).to.eq(0);
+    });
+    
+    it('When claiming, sponsor can claim only up to the maximum amount.', async () => {
+      // The investors stake their assets
+      await stakeVault.connect(investorA).deposit(1, 10000);
+      await stakeVault.connect(investorB).deposit(1, 25000);
+      
+      // Update deal status
+      await stakeVault.connect(owner).updateDealStatus(1, 2);
+      await stakeVault.connect(owner).updateDealStatus(1, 3);
+      await stakeVault.connect(owner).updateDealStatus(1, 4);
+      
+      // The sponsor claim the staked amount from the deal
+      await stakeVault.connect(sponsor).claim(1);
+      
+      // The claimed balance is 15000. total staked amount is 35000, maxSaleAmount is 15000 
+      expect(await testToken.balanceOf(sponsor.address)).to.equal(15000);
+
+      // The balace of investorB will be 195000, The claimed amount is 5000
+      await stakeVault.connect(sponsor).sendBack(2);
+      expect(await testToken.balanceOf(investorB.address)).to.equal(195000);
+    });
+
+    it('Investors can unstake their remaining amount from closed deal.', async () => {
+      // The investors stake their assets
+      await stakeVault.connect(investorA).deposit(1, 10000);
+      await stakeVault.connect(investorB).deposit(1, 25000);
+
+      // Update deal status
+      await stakeVault.connect(owner).updateDealStatus(1, 2);
+      await stakeVault.connect(owner).updateDealStatus(1, 3);
+      await stakeVault.connect(owner).updateDealStatus(1, 4);
+
+      // The sponsor claim the staked amount from the deal
+      await stakeVault.connect(sponsor).claim(1);
+
+      // The restAmount of invetorB will be 20000. The claimed balance is 15000. total staked amount is 35000, maxSaleAmount is 15000 
+      await stakeVault.connect(investorB).withdraw(2);
+
+      // The balace of investorB will be 195000, The claimed amount is 5000
+      expect(await testToken.balanceOf(investorB.address)).to.equal(195000);
     });
   });
 });

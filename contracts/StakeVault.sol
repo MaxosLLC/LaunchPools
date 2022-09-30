@@ -285,8 +285,9 @@ contract StakeVault is Ownable {
         }
         
         DealInfo storage deal = dealInfo[_dealId];
-        uint256 _amount = stake.amount;
+        uint256 _amount = stake.amount.add(stake.restAmount);
         stake.amount = 0;
+        stake.restAmount = 0;
         deal.totalStaked = deal.totalStaked.sub(_amount);
         IERC20(deal.stakingToken).transfer(msg.sender, _amount);
 
@@ -315,7 +316,7 @@ contract StakeVault is Ownable {
                 if(claimAmount > deal.amount.maxSale) {
                     uint256 diffAmount = claimAmount.sub(deal.amount.maxSale);
                     stake.restAmount = diffAmount;
-                    stake.amount = stake.amount.sub(diffAmount);
+                    stake.amount = 0;
                     claimAmount = deal.amount.maxSale;
                     break;
                 } else {
@@ -341,8 +342,9 @@ contract StakeVault is Ownable {
             require(deal.status == DealStatus.Closed, "Wrong Status.");
         }
         
-        uint256 _amount = stake.amount;
+        uint256 _amount = stake.amount.add(stake.restAmount);
         stake.amount = 0;
+        stake.restAmount = 0;
         deal.totalStaked = deal.totalStaked.sub(_amount);
         IERC20(deal.stakingToken).transfer(stake.staker, _amount);
     }

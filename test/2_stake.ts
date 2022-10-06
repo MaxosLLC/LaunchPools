@@ -30,9 +30,9 @@ describe("2. Stake Test", () => {
     await stakeVault.addAllowedToken(testToken.address);
 
     //Transfer tokens to the investors
-    await testToken.transfer(investorA.address, 20000);
-    await testToken.transfer(investorB.address, 20000);
-    await testToken.transfer(investorC.address, 20000);
+    await testToken.transfer(investorA.address, 200000);
+    await testToken.transfer(investorB.address, 200000);
+    await testToken.transfer(investorC.address, 200000);
 
     //Approve tokens of the investors
     await testToken.connect(investorA).approve(stakeVault.address, BigNumber.from('10').pow('18'), { from: investorA.address });
@@ -43,9 +43,9 @@ describe("2. Stake Test", () => {
   describe("Deploying Contracts",() => {
     it('Should have been deployed correctly', async () => {
       expect(await stakeVault.owner()).to.equal(owner.address);
-      expect(await testToken.balanceOf(investorA.address)).to.equal(20000);
-      expect(await testToken.balanceOf(investorB.address)).to.equal(20000);
-      expect(await testToken.balanceOf(investorC.address)).to.equal(20000);
+      expect(await testToken.balanceOf(investorA.address)).to.equal(200000);
+      expect(await testToken.balanceOf(investorB.address)).to.equal(200000);
+      expect(await testToken.balanceOf(investorC.address)).to.equal(200000);
     });
   });
 
@@ -59,7 +59,7 @@ describe("2. Stake Test", () => {
         0, // end bonus
         10000, // presale amount
         1000, // minimum sale amount
-        100000, // maximum sale amount
+        50000, // maximum sale amount
         [100, 10000], // stake limit amount (min, max)
         604800, // offer period
         testToken.address // staking token address
@@ -78,10 +78,10 @@ describe("2. Stake Test", () => {
 
     it('Test stake limit', async () => {
       await expect(stakeVault.connect(investorB).deposit(1, 10)).to.be.revertedWith("Wrong Amount.");
-      await expect(stakeVault.connect(investorB).deposit(1, 100000)).to.be.revertedWith("Wrong Amount.");
+      await expect(stakeVault.connect(investorB).deposit(1, 50000)).to.be.revertedWith("Wrong Amount.");
     });
 
-    it('Unstake investors staked amount', async () => {
+    it('The investors unstake staked amount', async () => {
       // The investors stake their assets
       await stakeVault.connect(investorA).deposit(1, 1000);
       await stakeVault.connect(investorB).deposit(1, 2500);
@@ -101,6 +101,37 @@ describe("2. Stake Test", () => {
       const B_UnStake  = await stakeVault.stakeInfo(2);
       expect(A_UnStake.amount).to.eq(0);
       expect(B_UnStake.amount).to.eq(0);
+    });
+    
+    it('The investors unstake over stakes than max sale', async () => {
+      await stakeVault.connect(sponsor).updateDeal(
+        1, 
+        'https://test.com',
+        investorA.address,
+        100,
+        0,
+        10000,
+        1000,
+        50000,
+        [100, 0]
+      );
+      // The investors stake their assets
+      await stakeVault.connect(investorA).deposit(1, 10000);
+      await stakeVault.connect(investorB).deposit(1, 60000);
+      await stakeVault.connect(investorA).deposit(1, 20000);
+
+      // Update deal status
+      await stakeVault.connect(owner).updateDealStatus(1, 2);
+      await stakeVault.connect(owner).updateDealStatus(1, 3);
+
+      await expect(stakeVault.connect(investorA).withdrawOverAmount(1)).to.be.revertedWith("Error.");
+
+      // InvestrB unstake the over stakes
+      await stakeVault.connect(investorB).withdrawOverAmount(2)
+      await stakeVault.connect(investorA).withdrawOverAmount(3)
+
+      const deal = await stakeVault.connect(sponsor).dealInfo(1);
+      expect(deal.totalStaked).to.eq(50000);
     });
 
     it('Only the owner or sponsor should use sendBack.', async () => {

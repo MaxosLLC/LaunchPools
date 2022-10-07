@@ -20,6 +20,7 @@ task("accounts", "Prints the list of accounts", async (args, hre: HardhatRuntime
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   solidity: {
+    version: "0.8.9",
     settings: {
       optimizer: {
         enabled: true,
@@ -57,7 +58,7 @@ const config: HardhatUserConfig = {
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
     },
     polygon: {
-      url: `https://rpc-mainnet.maticvigil.com/v1/${process.env.INFURA_PROJECT_ID}`,
+      url: `https://polygon-rpc.com/`,
       accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : []
     },
     mumbai: {

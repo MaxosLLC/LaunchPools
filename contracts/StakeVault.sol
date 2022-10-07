@@ -97,6 +97,11 @@ contract StakeVault is Ownable {
         _;
     }
 
+    modifier isAvailable() {
+        require(!closeAll, "Closed.");
+        _;
+    }
+
     function addDeal(
         string memory _name,
         string memory _url,
@@ -109,8 +114,7 @@ contract StakeVault is Ownable {
         uint256[] memory _stakeLimit,
         uint256 _offerPeriod,
         address _stakingToken
-    ) external allowedToken(_stakingToken) {
-        require(!closeAll, "Closed.");
+    ) external isAvailable allowedToken(_stakingToken) {
         _dealIds.increment();
         uint256 dealId = _dealIds.current();
         dealIds.push(dealId);
@@ -149,8 +153,7 @@ contract StakeVault is Ownable {
         uint256 _minSaleAmount,
         uint256 _maxSaleAmount,
         uint256[] memory _stakeLimit
-    ) external {
-        require(!closeAll, "Closed.");
+    ) external isAvailable {
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must Sponsor.");
         require(deal.status == DealStatus.NotDisplaying || deal.status == DealStatus.Staking, "Wrong Status.");
@@ -177,8 +180,7 @@ contract StakeVault is Ownable {
     function updateDealStatus(
         uint256 _dealId,
         DealStatus _status
-    ) external {
-        require(!closeAll, "Closed.");
+    ) external isAvailable {
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender || owner() == msg.sender, "No Permission.");
         require(deal.status != DealStatus.Closed, "Wrong Status.");
@@ -221,8 +223,7 @@ contract StakeVault is Ownable {
         uint256 _dealId,
         uint256 _price,
         string memory _terms
-    ) external existDeal(_dealId) {
-        require(!closeAll, "Closed.");
+    ) external isAvailable existDeal(_dealId) {
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must Sponsor.");
         deal.offer.price = _price;
@@ -236,8 +237,7 @@ contract StakeVault is Ownable {
     function deposit(
         uint256 _dealId,
         uint256 _amount
-    ) external existDeal(_dealId) {
-        require(!closeAll, "Closed.");
+    ) external isAvailable existDeal(_dealId) {
         require(checkDealStatus(_dealId, DealStatus.NotDisplaying) || checkDealStatus(_dealId, DealStatus.Staking) || checkDealStatus(_dealId, DealStatus.Offering), "Wrong Status.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.limit.min <= _amount, "Wrong Amount.");
@@ -294,10 +294,45 @@ contract StakeVault is Ownable {
         emit Withdraw(_stakeId, _amount, msg.sender);
     }
 
+    function withdrawOverAmount (
+        uint256 _stakeId
+    ) external isAvailable {
+        StakeInfo storage stake = stakeInfo[_stakeId];
+        uint256 _dealId = stake.dealId;
+        require(stake.staker == msg.sender, "Must Staker.");
+        require(checkDealStatus(_dealId, DealStatus.Delivering) || checkDealStatus(_dealId, DealStatus.Claiming), "Wrong Status.");
+        
+        DealInfo storage deal = dealInfo[_dealId];
+        uint256[] memory stakeIds = deal.stakeIds;
+        uint256 stakedAmount; // total staked amount in the deal before _staker stake 
+        uint256 _amount = stake.amount;
+
+        for(uint256 i=0; i<stakeIds.length; i++) {
+            if(_stakeId <= stakeIds[i]) {
+                break;
+            }
+            StakeInfo memory _stake = stakeInfo[stakeIds[i]];
+            if(_stake.amount > 0) {
+                stakedAmount = stakedAmount.add(_stake.amount);
+            }
+        }
+
+        require(deal.amount.maxSale < stakedAmount.add(_amount), "Error."); 
+
+        if(deal.amount.maxSale > stakedAmount && deal.amount.maxSale < stakedAmount.add(_amount)) {
+            _amount = _amount.sub(deal.amount.maxSale.sub(stakedAmount));
+        }
+
+        stake.amount = stake.amount.sub(_amount);
+        deal.totalStaked = deal.totalStaked.sub(_amount);
+        IERC20(deal.stakingToken).transfer(msg.sender, _amount);
+
+        emit Withdraw(_stakeId, _amount, msg.sender);
+    }
+
     function claim(
         uint256 _dealId
-    ) external {
-        require(!closeAll, "Closed.");
+    ) external isAvailable {
         require(checkDealStatus(_dealId, DealStatus.Claiming), "Wrong Status.");
         DealInfo storage deal = dealInfo[_dealId];
         require(deal.sponsor == msg.sender, "Must Sponsor.");
